@@ -28,6 +28,8 @@ type Probe = {
   delay: boolean;
   rejectDelayed: boolean;
   delayCall?: number;
+  repeatCall?: number;
+  repeatOffset?: number;
   release?: () => void;
   releases: Array<() => void>;
 };
@@ -57,7 +59,8 @@ async function instrument(page: Page) {
     Object.defineProperty(crypto, "getRandomValues", {
       value: (bytes: Uint8Array) => {
         if (probe.fail) throw new Error("synthetic entropy failure");
-        const offset = probe.randomCalls++ * 32;
+        const call = probe.randomCalls++;
+        const offset = (probe.repeatCall === call ? probe.repeatOffset! : call) * 32;
         for (let i = 0; i < bytes.length; i++) bytes[i] = (i + offset) % 256;
         return bytes;
       },
@@ -127,7 +130,7 @@ async function probe(page: Page) {
 test.afterEach(async ({ page }) => {
   await page
     .evaluate(() => {
-      for (const id of ["owner", "mcp", "digests"]) {
+      for (const id of ["owner", "mcp", "companion", "digests"]) {
         const input = document.getElementById(id) as HTMLInputElement | null;
         if (input) input.value = "";
       }
@@ -135,7 +138,7 @@ test.afterEach(async ({ page }) => {
     .catch(() => {});
 });
 
-for (const stage of [1, 2])
+for (const stage of [1, 2, 3])
   test(`Clear cancels generation while hash ${stage} is pending and discards its late result`, async ({
     page,
   }) => {
@@ -156,31 +159,32 @@ for (const stage of [1, 2])
       (settled) => window.__foReachProbe.digestSettled === settled,
       stage,
     );
-    for (const id of ["owner", "mcp", "digests"])
+    for (const id of ["owner", "mcp", "companion", "digests"])
       await expect(page.locator(`#${id}`)).toHaveValue("");
     await expect(page.locator("#owner")).toHaveAttribute("type", "password");
     await expect(page.locator("#mcp")).toHaveAttribute("type", "password");
+    await expect(page.locator("#companion")).toHaveAttribute("type", "password");
     await expect(page.locator("#status")).toContainText("Cleared.");
     await expect(page.locator("#error")).toBeEmpty();
     await expect(page.locator("#export")).toBeDisabled();
     expect(await probe(page)).toEqual({
-      randomCalls: 2,
+      randomCalls: 3,
       storageCalls: 0,
       networkCalls: 0,
     });
   });
 
-for (const rejects of [false, true])
-  test(`cancelled hash ${rejects ? "failure" : "success"} cannot alter a newer pending generation`, async ({
+for (const stage of [1, 2, 3]) for (const rejects of [false, true])
+  test(`cancelled hash ${stage} ${rejects ? "failure" : "success"} cannot alter a newer pending generation`, async ({
     page,
   }) => {
     await instrument(page);
     await page.goto(url);
-    await page.evaluate((rejectDelayed) => {
+    await page.evaluate(({ rejectDelayed, stage }) => {
       const p = window.__foReachProbe;
-      p.delay = true;
+      p.delayCall = stage;
       p.rejectDelayed = rejectDelayed;
-    }, rejects);
+    }, { rejectDelayed: rejects, stage });
     await page.locator("#generate").click();
     await page.waitForFunction(
       () => window.__foReachProbe.releases.length === 1,
@@ -195,7 +199,7 @@ for (const rejects of [false, true])
     );
     await page.evaluate(() => window.__foReachProbe.releases[0]());
     await page.waitForFunction(
-      () => window.__foReachProbe.digestSettled === 1,
+      settled => window.__foReachProbe.digestSettled === settled, stage,
     );
     await expect(page.locator("#generate")).toBeDisabled();
     await expect(page.locator("#clear")).toBeEnabled();
@@ -205,10 +209,13 @@ for (const rejects of [false, true])
     await page.evaluate(() => window.__foReachProbe.releases[1]());
     await expect(page.locator("#saved")).toBeEnabled();
     const expectedOwner = Buffer.from(
-      Array.from({ length: 32 }, (_, i) => i + 64),
+      Array.from({ length: 32 }, (_, i) => i + 96),
     ).toString("base64url");
     const expectedMcp = Buffer.from(
-      Array.from({ length: 32 }, (_, i) => i + 96),
+      Array.from({ length: 32 }, (_, i) => i + 128),
+    ).toString("base64url");
+    const expectedCompanion = Buffer.from(
+      Array.from({ length: 32 }, (_, i) => i + 160),
     ).toString("base64url");
     expect(
       await page.locator("#owner").inputValue()
@@ -218,23 +225,27 @@ for (const rejects of [false, true])
       await page.locator("#mcp").inputValue()
         .then((value) => value === expectedMcp),
     ).toBe(true);
+    expect(
+      await page.locator("#companion").inputValue()
+        .then((value) => value === expectedCompanion),
+    ).toBe(true);
     await expect(page.locator("#error")).toBeEmpty();
     await expect(page.locator("#export")).toBeDisabled();
     expect(await probe(page)).toEqual({
-      randomCalls: 4,
+      randomCalls: 6,
       storageCalls: 0,
       networkCalls: 0,
     });
     await page.locator("#clear").click();
   });
 
-test("a current hash failure clears pending state and permits an explicit retry", async ({ page }) => {
+for (const stage of [1, 2, 3]) test(`a current hash ${stage} failure clears pending state and permits an explicit retry`, async ({ page }) => {
   await instrument(page);
   await page.goto(url);
-  await page.evaluate(() => {
-    window.__foReachProbe.delay = true;
+  await page.evaluate(stage => {
+    window.__foReachProbe.delayCall = stage;
     window.__foReachProbe.rejectDelayed = true;
-  });
+  }, stage);
   await page.locator("#generate").click();
   await page.waitForFunction(() => !!window.__foReachProbe.release);
   await page.evaluate(() => window.__foReachProbe.release!());
@@ -242,7 +253,7 @@ test("a current hash failure clears pending state and permits an explicit retry"
   await expect(page.locator("#status")).toHaveText(
     "No credentials are ready. You can try again.",
   );
-  for (const id of ["owner", "mcp", "digests"])
+  for (const id of ["owner", "mcp", "companion", "digests"])
     await expect(page.locator(`#${id}`)).toHaveValue("");
   await expect(page.locator("#generate")).toBeEnabled();
   await expect(page.locator("#clear")).toBeDisabled();
@@ -252,11 +263,28 @@ test("a current hash failure clears pending state and permits an explicit retry"
   await expect(page.locator("#error")).toBeEmpty();
   await expect(page.locator("#status")).toContainText("Generated locally.");
   expect(await probe(page)).toEqual({
-    randomCalls: 4,
+    randomCalls: 6,
     storageCalls: 0,
     networkCalls: 0,
   });
   await page.locator("#clear").click();
+});
+
+for (const pair of [[0, 1], [0, 2], [1, 2]]) test(`duplicate synthetic role pair ${pair.join("/")} fails before hashing or export`, async ({ page }) => {
+  await instrument(page);
+  await page.goto(url);
+  await page.evaluate(([first, second]) => {
+    window.__foReachProbe.repeatCall = second;
+    window.__foReachProbe.repeatOffset = first;
+  }, pair);
+  await page.locator("#generate").click();
+  await expect(page.locator("#error")).toContainText("Generation failed.");
+  for (const id of ["owner", "mcp", "companion", "digests"])
+    await expect(page.locator(`#${id}`)).toHaveValue("");
+  expect(await page.evaluate(() => window.__foReachProbe.digestCalls)).toBe(0);
+  expect(await probe(page)).toEqual({ randomCalls: 3, storageCalls: 0, networkCalls: 0 });
+  await expect(page.locator("#export")).toBeDisabled();
+  await expect(page.locator("#generate")).toBeEnabled();
 });
 
 test("downloaded standalone HTML works directly with synthetic bytes where file navigation is supported", async ({
@@ -296,7 +324,10 @@ test("downloaded standalone HTML works directly with synthetic bytes where file 
   const expectedMcp = Buffer.from(
     Array.from({ length: 32 }, (_, i) => i + 32),
   ).toString("base64url");
-  const expectedDigests = `FO_FIX_OWNER_TOKEN_SHA256=${createHash("sha256").update(expectedOwner).digest("hex")}\nFO_FIX_MCP_TOKEN_SHA256=${createHash("sha256").update(expectedMcp).digest("hex")}\n`;
+  const expectedCompanion = Buffer.from(
+    Array.from({ length: 32 }, (_, i) => i + 64),
+  ).toString("base64url");
+  const expectedDigests = `FO_FIX_OWNER_TOKEN_SHA256=${createHash("sha256").update(expectedOwner).digest("hex")}\nFO_FIX_MCP_TOKEN_SHA256=${createHash("sha256").update(expectedMcp).digest("hex")}\nFO_FIX_COMPANION_TOKEN_SHA256=${createHash("sha256").update(expectedCompanion).digest("hex")}\n`;
   expect(
     await page.locator("#owner").inputValue()
       .then((value) => value === expectedOwner),
@@ -305,8 +336,13 @@ test("downloaded standalone HTML works directly with synthetic bytes where file 
     await page.locator("#mcp").inputValue()
       .then((value) => value === expectedMcp),
   ).toBe(true);
+  expect(
+    await page.locator("#companion").inputValue()
+      .then((value) => value === expectedCompanion),
+  ).toBe(true);
   await expect(page.locator("#owner")).toHaveAttribute("type", "password");
   await expect(page.locator("#mcp")).toHaveAttribute("type", "password");
+  await expect(page.locator("#companion")).toHaveAttribute("type", "password");
   await page.locator("#saved").check();
   const exported = page.waitForEvent("download");
   await page.locator("#export").click();
@@ -314,13 +350,14 @@ test("downloaded standalone HTML works directly with synthetic bytes where file 
   expect(
     contents === expectedDigests &&
       !contents.includes(expectedOwner) &&
-      !contents.includes(expectedMcp),
+      !contents.includes(expectedMcp) &&
+      !contents.includes(expectedCompanion),
   ).toBe(true);
   await page.locator("#clear").click();
-  for (const id of ["owner", "mcp", "digests"])
+  for (const id of ["owner", "mcp", "companion", "digests"])
     await expect(page.locator(`#${id}`)).toHaveValue("");
   expect(await probe(page)).toEqual({
-    randomCalls: 2,
+    randomCalls: 3,
     storageCalls: 0,
     networkCalls: 0,
   });
@@ -355,7 +392,10 @@ test("offline click-only generation hashes exact synthetic strings, masks values
   const fixtureMcp = Buffer.from(
     Array.from({ length: 32 }, (_, i) => i + 32),
   ).toString("base64url");
-  const expected = `FO_FIX_OWNER_TOKEN_SHA256=${createHash("sha256").update(fixtureOwner).digest("hex")}\nFO_FIX_MCP_TOKEN_SHA256=${createHash("sha256").update(fixtureMcp).digest("hex")}\n`;
+  const fixtureCompanion = Buffer.from(
+    Array.from({ length: 32 }, (_, i) => i + 64),
+  ).toString("base64url");
+  const expected = `FO_FIX_OWNER_TOKEN_SHA256=${createHash("sha256").update(fixtureOwner).digest("hex")}\nFO_FIX_MCP_TOKEN_SHA256=${createHash("sha256").update(fixtureMcp).digest("hex")}\nFO_FIX_COMPANION_TOKEN_SHA256=${createHash("sha256").update(fixtureCompanion).digest("hex")}\n`;
   // Boolean assertions keep even synthetic credential values out of failure logs.
   expect(
     await page
@@ -370,6 +410,10 @@ test("offline click-only generation hashes exact synthetic strings, masks values
       .then((value) => value === fixtureMcp),
   ).toBe(true);
   expect(
+    await page.locator("#companion").inputValue()
+      .then((value) => value === fixtureCompanion),
+  ).toBe(true);
+  expect(
     await page
       .locator("#digests")
       .inputValue()
@@ -377,11 +421,14 @@ test("offline click-only generation hashes exact synthetic strings, masks values
   ).toBe(true);
   await expect(page.locator("#owner")).toHaveAttribute("type", "password");
   await expect(page.locator("#mcp")).toHaveAttribute("type", "password");
+  await expect(page.locator("#companion")).toHaveAttribute("type", "password");
   await expect(page.locator("#generate")).toBeDisabled();
   await page.locator("#reveal").click();
   await expect(page.locator("#owner")).toHaveAttribute("type", "text");
+  await expect(page.locator("#companion")).toHaveAttribute("type", "text");
   await page.evaluate(() => window.dispatchEvent(new Event("blur")));
   await expect(page.locator("#owner")).toHaveAttribute("type", "password");
+  await expect(page.locator("#companion")).toHaveAttribute("type", "password");
   await expect(page.locator("#export")).toBeDisabled();
   await page.locator("#saved").check();
   const exported = page.waitForEvent("download");
@@ -392,17 +439,18 @@ test("offline click-only generation hashes exact synthetic strings, masks values
   expect(
     contents === expected &&
       !contents.includes(fixtureOwner) &&
-      !contents.includes(fixtureMcp),
+      !contents.includes(fixtureMcp) &&
+      !contents.includes(fixtureCompanion),
   ).toBe(true);
   expect(await probe(page)).toEqual({
-    randomCalls: 2,
+    randomCalls: 3,
     storageCalls: 0,
     networkCalls: 0,
   });
   expect(httpRequests).toBe(0);
   await page.locator("#clear").click();
-  await expect(page.locator("#owner")).toHaveValue("");
-  await expect(page.locator("#digests")).toHaveValue("");
+  for (const id of ["owner", "mcp", "companion", "digests"])
+    await expect(page.locator(`#${id}`)).toHaveValue("");
   await page.reload();
   expect(await probe(page)).toEqual({
     randomCalls: 0,
@@ -447,6 +495,7 @@ test("helper fails closed on entropy failure and discards generation finishing a
   );
   await expect(page.locator("#owner")).toHaveValue("");
   await expect(page.locator("#mcp")).toHaveValue("");
+  await expect(page.locator("#companion")).toHaveValue("");
   await expect(page.locator("#digests")).toHaveValue("");
   await expect(page.locator("#export")).toBeDisabled();
 });
