@@ -3,6 +3,7 @@ import { mkdirSync, chmodSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Action, AuditEvent, DeviceState, Plan } from "../shared/types.ts";
 import type { ReviewPlan, ReviewJob } from "../review/contracts.ts";
+import type { AppPlan, AppAction } from "../apps/contracts.ts";
 
 export const initialFixture: DeviceState = {
   outputId: "fixture-hdmi",
@@ -37,6 +38,7 @@ export type StoredData = {
   events: AuditEvent[];
   fixture: DeviceState;
   review?: { plans: ReviewPlan[]; jobs: ReviewJob[] };
+  apps?: { plans: AppPlan[]; actions: AppAction[] };
 };
 export class Store {
   private db: DatabaseSync;
@@ -52,7 +54,8 @@ export class Store {
       "PRAGMA busy_timeout=1000; PRAGMA journal_mode=DELETE; PRAGMA locking_mode=EXCLUSIVE; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS state (id INTEGER PRIMARY KEY CHECK(id = 1), data TEXT NOT NULL)",
     );
     const row = this.db.prepare("SELECT data FROM state WHERE id = 1").get() as
-      { data: string } | undefined;
+      | { data: string }
+      | undefined;
     this.data = row
       ? JSON.parse(row.data)
       : {

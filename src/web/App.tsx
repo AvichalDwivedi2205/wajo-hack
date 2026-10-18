@@ -29,8 +29,9 @@ import {
 } from "lucide-react";
 import type { Action, AppStatus, Plan, Snapshot } from "../shared/types.ts";
 import { ReviewWorkspace } from "./ReviewWorkspace.tsx";
+import { AppsWorkspace } from "./AppsWorkspace.tsx";
 
-type View = "workspace" | "history" | "permissions" | "connection" | "review";
+type View = "workspace" | "history" | "permissions" | "connection" | "review" | "apps";
 type BrowserAuth = {
   csrfToken?: string;
   expiresAt?: number;
@@ -364,6 +365,7 @@ export function App() {
       )
     : 0;
   const nav = [
+    { key: "apps" as const, text: "Open apps", icon: ExternalLink },
     { key: "review" as const, text: "Client review", icon: Activity },
     {
       key: "workspace" as const,
@@ -535,13 +537,13 @@ export function App() {
             <br />
             Approve what changes.
             <br />
-            Keep a way back.
+            {view === "apps" ? "Review each action." : "Keep a way back."}
           </p>
           <button onClick={() => setView("permissions")}>
             How permissions work <ArrowRight size={13} />
           </button>
         </div>
-        <div className="sidebar-bottom">
+        {view !== "apps" && <div className="sidebar-bottom">
           <div className="avatar">
             <Monitor size={18} />
           </div>
@@ -571,7 +573,7 @@ export function App() {
           >
             <MoreHorizontal size={18} />
           </button>
-        </div>
+        </div>}
       </aside>
       <div className="page-shell" inert={!!plan}>
         <header className="topbar">
@@ -636,7 +638,7 @@ export function App() {
               </div>
             </div>
           )}
-          {view !== "review" && <div className="environment-banner">
+          {view !== "review" && view !== "apps" && <div className="environment-banner">
             <span>
               <Info size={15} />
               <strong>
@@ -689,6 +691,7 @@ export function App() {
             </div>
           )}
           {view === "review" && <ReviewWorkspace request={api} />}
+          {view === "apps" && <AppsWorkspace request={api} />}
           {view === "workspace" && (
             <>
               <div className="page-heading">

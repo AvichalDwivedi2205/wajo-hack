@@ -1,9 +1,15 @@
 import { z } from "zod";
 import { repairRequest } from "./requests.ts";
 import { reviewId, reviewPrepare } from "../review/contracts.ts";
+import { appOpenRequest, appPlanId } from "../apps/contracts.ts";
 
 const empty = z.object({}).strict();
 export const agentRequest = z.discriminatedUnion("tool", [
+  z.object({ tool: z.literal("apps.inspect"), args: empty }).strict(),
+  z
+    .object({ tool: z.literal("apps.propose_open"), args: appOpenRequest })
+    .strict(),
+  z.object({ tool: z.literal("apps.open_approved"), args: appPlanId }).strict(),
   z.object({ tool: z.literal("fo_fix_status"), args: empty }).strict(),
   z.object({ tool: z.literal("fo_fix_inspect_output"), args: empty }).strict(),
   z

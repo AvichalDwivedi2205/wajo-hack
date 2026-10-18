@@ -6,7 +6,9 @@ import type {
   Snapshot,
 } from "../shared/types.ts";
 import type { ReviewAgent } from "../review/contracts.ts";
+import type { AppAgent } from "../apps/contracts.ts";
 export interface AgentService {
+  apps?: AppAgent;
   review?: ReviewAgent;
   status(audience?: "local" | "agent"): AppStatus | Promise<AppStatus>;
   inspect(): Promise<Snapshot>;

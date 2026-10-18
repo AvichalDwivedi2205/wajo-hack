@@ -28,6 +28,12 @@ import {
   reviewPlanSchema,
   reviewJobSchema,
 } from "../review/contracts.ts";
+import {
+  appInspection,
+  appPlan,
+  appAction,
+  type AppAgent,
+} from "../apps/contracts.ts";
 
 type Job = RelayJob & {
   state: "queued" | "delivered" | "completed";
@@ -38,6 +44,7 @@ type Job = RelayJob & {
 };
 export class SessionBroker implements OwnerService {
   review?: ReviewAgent;
+  apps?: AppAgent;
   private session?: {
     id: string;
     source: Mode;
@@ -53,7 +60,23 @@ export class SessionBroker implements OwnerService {
     private clock: () => number = Date.now,
     private requestTimeoutMs = 25_000,
     reviewEnabled = false,
+    appsEnabled = false,
   ) {
+    if (appsEnabled)
+      this.apps = {
+        inspect: () =>
+          this.reviewResult(appInspection, { tool: "apps.inspect", args: {} }),
+        propose: (appId) =>
+          this.reviewResult(appPlan, {
+            tool: "apps.propose_open",
+            args: { appId },
+          }),
+        execute: (id) =>
+          this.reviewResult(appAction, {
+            tool: "apps.open_approved",
+            args: { id },
+          }),
+      };
     if (reviewEnabled)
       this.review = {
         snapshot: () =>
@@ -200,11 +223,19 @@ export class SessionBroker implements OwnerService {
         reject(
           new FixError(
             job?.state === "delivered" &&
-            ["fo_fix_execute_approved", "review.commit"].includes(request.tool)
+              [
+                "fo_fix_execute_approved",
+                "review.commit",
+                "apps.open_approved",
+              ].includes(request.tool)
               ? "EXECUTION_UNCERTAIN"
               : "DEVICE_TIMEOUT",
             job?.state === "delivered" &&
-            ["fo_fix_execute_approved", "review.commit"].includes(request.tool)
+              [
+                "fo_fix_execute_approved",
+                "review.commit",
+                "apps.open_approved",
+              ].includes(request.tool)
               ? "The device did not return an execution result. Inspect its local journal; no automatic retry was made."
               : "The device did not respond. No request was redelivered.",
             504,

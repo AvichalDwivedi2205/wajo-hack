@@ -9,6 +9,8 @@ import { loadConfig } from "./config.ts";
 import { SessionBroker } from "./session.ts";
 import { FixError } from "../core/errors.ts";
 import type { OwnerService } from "../core/service.ts";
+import { AppEngine } from "../apps/engine.ts";
+import { MacAppAdapter, FixtureAppAdapter } from "../apps/adapter.ts";
 import { ReviewEngine } from "../review/engine.ts";
 import { reviewDemoRoot } from "../review/setup.ts";
 import {
@@ -34,6 +36,23 @@ try {
 }
 const port = config.port;
 const real = process.argv.includes("--macos");
+const nativeApps = process.argv.includes("--macos-apps");
+const fixtureApps = process.argv.includes("--apps-demo");
+const appsEnabled =
+  nativeApps || fixtureApps || process.env.FO_FIX_APPS_ENABLED === "1";
+if (
+  (nativeApps &&
+    (fixtureApps ||
+      process.platform !== "darwin" ||
+      config.mode !== "local")) ||
+  (appsEnabled && config.mode === "remote" && config.backend !== "session") ||
+  (appsEnabled && config.mode === "local" && !nativeApps && !fixtureApps)
+) {
+  console.error(
+    "App opening requires an explicit local --macos-apps or synthetic --apps-demo route, or a remote session gateway. No automatic app installs or grants.",
+  );
+  process.exit(2);
+}
 const reviewNative = process.argv.includes("--review-native");
 const reviewPptx = process.argv.includes("--review-pptx");
 const reviewEnabled =
@@ -43,7 +62,11 @@ const reviewEnabled =
   process.env.FO_FIX_REVIEW_ENABLED === "1";
 if (
   (reviewNative || reviewPptx) &&
-  ((reviewNative && !real) || (reviewNative && reviewPptx) || process.platform !== "darwin" || config.mode !== "local" || !process.env.FO_FIX_REVIEW_ROOT)
+  ((reviewNative && !real) ||
+    (reviewNative && reviewPptx) ||
+    process.platform !== "darwin" ||
+    config.mode !== "local" ||
+    !process.env.FO_FIX_REVIEW_ROOT)
 ) {
   console.error(
     "Select one explicit Mac review route: --macos --review-native or --review-pptx, with local mode, FO_FIX_REVIEW_ROOT and the reviewed PDF helper. No permissions or credentials are configured automatically.",
@@ -81,8 +104,21 @@ const engine = store
       Date.now,
       25_000,
       reviewEnabled,
+      appsEnabled,
     );
 const owner: OwnerService = engine;
+const apps =
+  store && appsEnabled
+    ? new AppEngine(
+        store,
+        nativeApps
+          ? new MacAppAdapter(
+              join(root, "companion/macos/.build/fo-reach-apps"),
+            )
+          : new FixtureAppAdapter(),
+      )
+    : undefined;
+if (apps) owner.apps = apps;
 const review =
   reviewEnabled && store
     ? new ReviewEngine(
@@ -90,11 +126,13 @@ const review =
         reviewNative || reviewPptx
           ? resolve(process.env.FO_FIX_REVIEW_ROOT!)
           : reviewDemoRoot(root, dataPath),
-        reviewPptx ? new PptxReviewAdapter() : reviewNative
-          ? new KeynoteReviewAdapter(
-              join(root, "companion/macos/.build/fo-review"),
-            )
-          : new SyntheticReviewAdapter(),
+        reviewPptx
+          ? new PptxReviewAdapter()
+          : reviewNative
+            ? new KeynoteReviewAdapter(
+                join(root, "companion/macos/.build/fo-review"),
+              )
+            : new SyntheticReviewAdapter(),
         Date.now,
         reviewNative
           ? join(root, "companion/macos/.build/fo-review")
@@ -144,7 +182,12 @@ function stop() {
     );
     // Keep the exclusive journal lock until active writes have been verified
     // and persisted, and their HTTP responses have completed.
-    await Promise.all([closed, engine.shutdown(), review?.shutdown()]);
+    await Promise.all([
+      closed,
+      engine.shutdown(),
+      review?.shutdown(),
+      apps?.shutdown(),
+    ]);
     await vite?.close();
     store?.close();
   })());

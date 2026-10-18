@@ -5,6 +5,7 @@ import { FixError } from "../core/errors.ts";
 import { repairRequest } from "../shared/requests.ts";
 import { MAX_MCP_RESULT_BYTES } from "../shared/limits.ts";
 import { reviewId, reviewPrepare } from "../review/contracts.ts";
+import { appOpenRequest, appPlanId } from "../apps/contracts.ts";
 
 export function createMcpServer(engine: AgentService) {
   const server = new McpServer(
@@ -52,6 +53,43 @@ export function createMcpServer(engine: AgentService) {
     destructiveHint: false,
     openWorldHint: false,
   };
+  if (engine.apps) {
+    const apps = engine.apps;
+    server.registerTool(
+      "apps.inspect",
+      {
+        description:
+          "After separate local consent, inspect only supported Spotify, Music and Calculator installation/running state. No window contents, personal files, playback state or whole-Mac scan. Fixture source is synthetic.",
+        inputSchema: z.object({}).strict(),
+        annotations: read,
+      },
+      () => call(() => apps.inspect()),
+    );
+    server.registerTool(
+      "apps.propose_open",
+      {
+        description:
+          "Propose opening one supported installed app and bringing it to the front. Returns exact effect, risk, expiry and digest for local human approval. Does not launch, play music, install software, accept arbitrary paths/URLs, or close apps.",
+        inputSchema: appOpenRequest,
+        annotations: { ...read, readOnlyHint: false },
+      },
+      ({ appId }) => call(() => apps.propose(appId)),
+    );
+    server.registerTool(
+      "apps.open_approved",
+      {
+        description:
+          "Consume one exact unexpired local app-opening approval. Open the fixed installed app and verify it running/frontmost. Never retry uncertain results automatically. Opening Spotify does not prove music playback. No automatic undo closes apps.",
+        inputSchema: appPlanId,
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          openWorldHint: true,
+        },
+      },
+      ({ id }) => call(() => apps.execute(id)),
+    );
+  }
   server.registerTool(
     "fo_fix_status",
     {

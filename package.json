@@ -21,6 +21,7 @@
     "test:haiku": "node scripts/haiku-smoke.mjs",
     "check": "npm run build && npm test && npm run test:e2e",
     "macos:build": "bash companion/macos/build.sh",
+    "macos:apps:build": "bash companion/macos/build-apps.sh",
     "review:demo": "npm run review:setup && node --import tsx src/server/main.ts --production --review-demo",
     "review:dev": "npm run review:setup && node --import tsx src/server/main.ts --review-demo",
     "review:setup": "node --import tsx scripts/setup-review-demo.ts",

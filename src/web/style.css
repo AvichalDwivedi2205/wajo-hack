@@ -2362,6 +2362,53 @@ dt {
   letter-spacing: 1.3px;
   font-weight: 700;
 }
+.apps-workspace .settings-card {
+  padding: 26px 30px;
+  margin-bottom: 20px;
+  border-radius: 14px;
+}
+.apps-workspace .settings-card h2 {
+  font-size: 23px;
+  font-weight: 600;
+  color: #204d3e;
+  margin: 0 0 13px;
+}
+.apps-workspace .settings-card h3 {
+  font-size: 18px;
+  margin: 18px 0 8px;
+}
+.apps-workspace .settings-card p {
+  max-width: 85ch;
+  font-size: 15px;
+  line-height: 1.65;
+  color: #56615a;
+  margin: 8px 0;
+}
+.apps-workspace button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 18px;
+  margin: 14px 12px 0 0;
+  border: 1px solid #ccd4c3;
+  border-radius: 8px;
+  background: #e5edce;
+  color: #234635;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.apps-workspace button:hover { background: #dce7bc; }
+.apps-workspace button:disabled { opacity: .5; cursor: not-allowed; }
+.apps-workspace button:focus-visible, .apps-workspace input:focus-visible {
+  outline: 3px solid #51754d;
+  outline-offset: 3px;
+}
+.apps-workspace label { display: block; margin-top: 18px; line-height: 1.7; }
+.apps-workspace input[type="checkbox"] { accent-color: #365f42; margin-right: 8px; }
+.apps-workspace small { color: #6c786c; }
+
 .review-workspace .settings-card {
   margin: 22px 0;
   overflow-wrap: anywhere;
