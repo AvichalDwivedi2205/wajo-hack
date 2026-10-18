@@ -12,6 +12,7 @@ import { createApp } from "../src/server/app.ts";
 import type { OwnerService } from "../src/core/service.ts";
 import { agentRequest } from "../src/shared/relay.ts";
 import { SessionBroker } from "../src/server/session.ts";
+import { appInspection, type AppAgent } from "../src/apps/contracts.ts";
 
 function fixture() {
   const store = new Store(),
@@ -27,6 +28,130 @@ function fixture() {
     },
   };
 }
+async function relayResult<T>(
+  call: (apps: AppAgent) => Promise<T>,
+  result: unknown,
+) {
+  const broker = new SessionBroker("test-device", Date.now, 1000, false, true);
+  const session = broker.connect("test-device", "fixture");
+  try {
+    const operation = call(broker.apps!);
+    const job = await broker.poll(
+      session.sessionId,
+      new AbortController().signal,
+    );
+    assert(job);
+    broker.complete(session.sessionId, job.id, { structuredContent: { result } });
+    return await operation;
+  } finally {
+    broker.disconnect();
+  }
+}
+test("app relay binds a pending proposal to the requested app", async () => {
+  const c = fixture();
+  try {
+    c.engine.grant();
+    const plan = await c.engine.propose("spotify");
+    assert.deepEqual(
+      await relayResult((apps) => apps.propose("spotify"), plan),
+      plan,
+    );
+    for (const forged of [
+      { ...plan, appId: "music" },
+      { ...plan, status: "approved" },
+    ])
+      await assert.rejects(
+        relayResult((apps) => apps.propose("spotify"), forged),
+        (error) => (error as { code: string }).code === "INVALID_DEVICE_RESULT",
+      );
+  } finally {
+    c.store.close();
+  }
+});
+test("app relay rejects success for another plan or without matching verified facts", async () => {
+  const c = fixture();
+  try {
+    c.engine.grant();
+    const plan = await c.engine.propose("spotify");
+    await c.engine.approve(plan.id, plan.digest);
+    const action = await c.engine.execute(plan.id);
+    assert.deepEqual(
+      await relayResult((apps) => apps.execute(plan.id), action),
+      action,
+    );
+    for (const forged of [
+      { ...action, planId: "11111111-1111-4111-8111-111111111111" },
+      { ...action, completedAt: undefined },
+      { ...action, after: undefined },
+      { ...action, after: { ...action.after!, active: false } },
+      { ...action, after: { ...action.after!, running: false } },
+      { ...action, after: { ...action.after!, installed: false } },
+      { ...action, after: { ...action.after!, identity: "" } },
+      { ...action, after: { ...action.after!, name: "Another app" } },
+      { ...action, after: { ...action.after!, bundleId: "other.bundle" } },
+      { ...action, after: c.adapter.facts.music },
+      { ...action, state: "executing" },
+      { ...action, source: "macos" },
+    ])
+      await assert.rejects(
+        relayResult((apps) => apps.execute(plan.id), forged),
+        (error) => (error as { code: string }).code === "INVALID_DEVICE_RESULT",
+      );
+    // Uncertainty remains a valid final result; it is never promoted to success.
+    const uncertain = { ...action, state: "uncertain", after: undefined };
+    assert.deepEqual(
+      await relayResult((apps) => apps.execute(plan.id), uncertain),
+      uncertain,
+    );
+  } finally {
+    c.store.close();
+  }
+});
+test("app inspection rejects duplicated or contradictory catalog facts while preserving mixed history", async () => {
+  const c = fixture();
+  try {
+    c.engine.grant();
+    const inspection = await c.engine.inspect();
+    for (const forged of [
+      {
+        ...inspection,
+        apps: [inspection.apps[0], inspection.apps[0], inspection.apps[2]],
+      },
+      ...[
+        { name: "Another app" },
+        { bundleId: "other.bundle" },
+        { identity: "" },
+      ].map((change) => ({
+        ...inspection,
+        apps: inspection.apps.map((a, i) => (i ? a : { ...a, ...change })),
+      })),
+      { ...inspection, source: "macos" },
+    ])
+      await assert.rejects(
+        relayResult((apps) => apps.inspect(), forged),
+        (error) => (error as { code: string }).code === "INVALID_DEVICE_RESULT",
+      );
+    const plan = await c.engine.propose("spotify");
+    await c.engine.approve(plan.id, plan.digest);
+    const action = await c.engine.execute(plan.id);
+    // These are synthetic schema examples, not evidence of a native launch.
+    // App provenance is independent of audio mode and historical action sources.
+    const nativeShapedFacts = inspection.apps.map((fact) => ({
+      ...fact,
+      identity: `/Applications/${fact.name}.app#${"a".repeat(40)}`,
+    }));
+    const mixed = {
+      ...inspection,
+      source: "macos",
+      apps: nativeShapedFacts,
+      actions: [action],
+    };
+    assert.equal(appInspection.safeParse(mixed).success, true);
+    assert.deepEqual(await relayResult((apps) => apps.inspect(), mixed), mixed);
+  } finally {
+    c.store.close();
+  }
+});
 test("app opening requires separate consent, exact approval, verifies result and consumes approval once", async () => {
   const c = fixture();
   try {

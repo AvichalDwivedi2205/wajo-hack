@@ -17,8 +17,25 @@ export const appFact = z
     running: z.boolean(),
     active: z.boolean(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (fact) =>
+      fact.name === supportedApps[fact.id].name &&
+      fact.bundleId === supportedApps[fact.id].bundleId &&
+      (!fact.installed || fact.identity.trim().length > 0) &&
+      (!fact.running || fact.installed) &&
+      (!fact.active || (fact.installed && fact.running)),
+    "Application facts must identify the supported app and have consistent installation and running state.",
+  );
 export type AppFact = z.infer<typeof appFact>;
+function matchesSource(source: "fixture" | "macos", fact: AppFact) {
+  return (
+    !fact.installed ||
+    (source === "macos"
+      ? /^\/.+#[a-f0-9]{40}$/.test(fact.identity)
+      : fact.identity.startsWith(`synthetic:${fact.bundleId}:`))
+  );
+}
 export const appPlan = z
   .object({
     id: z.uuid(),
@@ -46,7 +63,24 @@ export const appAction = z
     observed: z.string().max(512),
     after: appFact.optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (action) => !action.after || action.after.id === action.appId,
+    "Verification facts must identify the action's application.",
+  )
+  .refine(
+    (action) => !action.after || matchesSource(action.source, action.after),
+    "Application identity must match the action's native or synthetic source.",
+  )
+  .refine(
+    (action) =>
+      action.state !== "succeeded" ||
+      (!!action.completedAt &&
+        !!action.after?.installed &&
+        action.after.running &&
+        action.after.active),
+    "Successful opening requires completion time and verification that the app is installed, running and active.",
+  );
 export type AppAction = z.infer<typeof appAction>;
 export const appInspection = z
   .object({
@@ -55,7 +89,16 @@ export const appInspection = z
     plans: z.array(appPlan).max(20),
     actions: z.array(appAction).max(20),
   })
-  .strict();
+  .strict()
+  .refine(
+    (inspection) => new Set(inspection.apps.map((app) => app.id)).size === 3,
+    "Inspection must contain each supported application exactly once.",
+  )
+  .refine(
+    (inspection) =>
+      inspection.apps.every((app) => matchesSource(inspection.source, app)),
+    "Current application identities must match the inspection's native or synthetic source.",
+  );
 export type AppInspection = z.infer<typeof appInspection>;
 export interface AppAgent {
   inspect(): Promise<AppInspection>;

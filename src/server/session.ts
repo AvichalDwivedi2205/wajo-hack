@@ -67,15 +67,19 @@ export class SessionBroker implements OwnerService {
         inspect: () =>
           this.reviewResult(appInspection, { tool: "apps.inspect", args: {} }),
         propose: (appId) =>
-          this.reviewResult(appPlan, {
-            tool: "apps.propose_open",
-            args: { appId },
-          }),
+          this.reviewResult(
+            appPlan.refine(
+              (plan) => plan.appId === appId && plan.status === "pending",
+            ),
+            { tool: "apps.propose_open", args: { appId } },
+          ),
         execute: (id) =>
-          this.reviewResult(appAction, {
-            tool: "apps.open_approved",
-            args: { id },
-          }),
+          this.reviewResult(
+            appAction.refine(
+              (action) => action.planId === id && action.state !== "executing",
+            ),
+            { tool: "apps.open_approved", args: { id } },
+          ),
       };
     if (reviewEnabled)
       this.review = {
@@ -115,7 +119,7 @@ export class SessionBroker implements OwnerService {
     invariant(
       parsed.success,
       "INVALID_DEVICE_RESULT",
-      "The companion returned invalid or excessive review metadata. No document bytes are accepted through the relay.",
+      "The companion returned invalid or excessive operation metadata. No document bytes are accepted through the relay.",
       502,
     );
     return parsed.data!;
