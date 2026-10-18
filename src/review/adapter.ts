@@ -7,10 +7,11 @@ import { OutputDirectory, type OutputBoundary } from "./output.ts";
 import { safeRead, sha256 } from "./files.ts";
 import { syntheticOutput, syntheticHtml, expectedPageText } from "./render.ts";
 import { rasterHasInk, sameRaster } from "./png.ts";
-import type { ReviewPlan } from "./contracts.ts";
-import { nativeEvidenceSchema, nativeIdentitySchema } from "./contracts.ts";
+import type { ReviewPlan, ReviewOutputKind } from "./contracts.ts";
+import { nativeEvidenceSchema, nativeIdentitySchema, pptxEvidenceSchema } from "./contracts.ts";
 import type { ReviewJob } from "./contracts.ts";
 import { readSources, type Sources } from "./manifest.ts";
+import { editablePptx, pptxRecipeSha256, renderPptx } from "./pptx.ts";
 
 const exec = promisify(execFile);
 export async function nativeReceipt(
@@ -35,6 +36,7 @@ export async function nativeReceipt(
 }
 export interface ReviewAdapter {
   synthetic: boolean;
+  outputKind?: ReviewOutputKind;
   execute(
     directory: string,
     plan: ReviewPlan,
@@ -42,6 +44,24 @@ export interface ReviewAdapter {
     signal: AbortSignal,
     boundary: OutputBoundary,
   ): Promise<void | NonNullable<ReviewJob["nativeEvidence"]>>;
+}
+export class PptxReviewAdapter implements ReviewAdapter {
+  synthetic = false;
+  outputKind = "pptx" as const;
+  async execute(directory: string, plan: ReviewPlan, sources: Sources, signal: AbortSignal, boundary: OutputBoundary) {
+    invariant(plan.recipeSha256 === await pptxRecipeSha256(), "REVIEW_RECIPE", "The PPTX recipe changed after approval. Inspect and approve again before writing an output file.");
+    const output = await OutputDirectory.open(directory, boundary);
+    try {
+      const pptx = editablePptx(plan, sources);
+      await output.write("review.pptx", pptx);
+      const { pdf, evidence } = await renderPptx(pptx, plan.recipeSha256, signal);
+      await output.write("review.pdf", pdf);
+      await renderCloudPdf(pdf, output.write.bind(output), signal);
+      await output.write("receipt.json", JSON.stringify(evidence));
+    } finally {
+      await output.close();
+    }
+  }
 }
 export class SyntheticReviewAdapter implements ReviewAdapter {
   synthetic = true;
@@ -230,7 +250,19 @@ export async function checkOutput(
       checkedArtifacts.push({ name, sha256: sha256(bytes) });
     }
   }
+  let pptxEvidence;
+  if (plan.recipe === "pptx-fixed-slots-v1") {
+    invariant(!plan.snapshot.synthetic && plan.snapshot.outputKind === "pptx" && plan.recipeSha256 === await pptxRecipeSha256(), "REVIEW_RECIPE", "The explicitly approved PPTX recipe must remain unchanged.");
+    const sources = await readSources(root);
+    const pptx = await safeRead(root, `${directoryName}/review.pptx`, 16 * 1024 * 1024);
+    invariant(pptx.equals(editablePptx(plan, sources)), "REVIEW_VERIFY", "The complete editable PowerPoint archive differs from the approved text, source images or fixed template.");
+    const bytes = await safeRead(root, `${directoryName}/receipt.json`, 4096);
+    pptxEvidence = pptxEvidenceSchema.parse(JSON.parse(bytes.toString("utf8")));
+    invariant(pptxEvidence.recipeSha256 === plan.recipeSha256 && pptxEvidence.pptxSha256 === sha256(pptx) && pptxEvidence.pdfSha256 === sha256(pdf), "REVIEW_RECIPE", "The physical PPTX receipt must match the approved recipe and both actual output files.");
+    checkedArtifacts.push({ name: "review.pptx", sha256: sha256(pptx) }, { name: "receipt.json", sha256: sha256(bytes) });
+  }
   return {
+    pptxEvidence,
     verification: {
       pages: 3,
       textChecked: true,

@@ -636,7 +636,7 @@ export function App() {
               </div>
             </div>
           )}
-          <div className="environment-banner">
+          {view !== "review" && <div className="environment-banner">
             <span>
               <Info size={15} />
               <strong>
@@ -667,7 +667,7 @@ export function App() {
                   ? "FIXTURE MODE"
                   : "LOCAL MODE"}
             </span>
-          </div>
+          </div>}
           {(error || offline) && (
             <div className="error-banner" role="alert">
               <CircleHelp size={18} />

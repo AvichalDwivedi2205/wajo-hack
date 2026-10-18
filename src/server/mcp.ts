@@ -154,7 +154,7 @@ export function createMcpServer(engine: AgentService) {
       "review.verify",
       {
         description:
-          "Read/independently verify a journaled review job. Check exported PDF contents, three pages, rendered pages and original hashes. Polling does not repeat native execution. Hardware and live Fo readiness are separate from synthetic results.",
+          "Read/independently verify a journaled review job. Check PDF contents, three pages, rendered pages, original hashes and complete editable PPTX bytes when that explicit route is selected. Report outputKind: PPTX is real file generation through macOS preview and Chrome print, not Keynote export. Polling does not repeat execution. Actual Fo readiness is a separate gate.",
         inputSchema: reviewId,
         annotations: read,
       },

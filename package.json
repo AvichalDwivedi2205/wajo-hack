@@ -30,7 +30,8 @@
     "macos:review:build": "bash companion/macos/build-review.sh",
     "review:native:audit": "node --import tsx scripts/review-native-audit.ts",
     "review:seed": "node --import tsx scripts/create-keynote-seed.ts",
-    "review:bind-native": "node --import tsx scripts/bind-native-review.ts"
+    "review:bind-native": "node --import tsx scripts/bind-native-review.ts",
+    "review:pptx:setup": "node --import tsx scripts/setup-pptx-review.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",

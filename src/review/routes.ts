@@ -103,12 +103,12 @@ export function mountReview(
     const { id, name } = z
       .object({
         id: z.uuid(),
-        name: z.enum(["review.pdf", "page-1.png", "page-2.png", "page-3.png"]),
+        name: z.enum(["review.pdf", "review.pptx", "page-1.png", "page-2.png", "page-3.png"]),
       })
       .strict()
       .parse(req.params);
-    res
-      .type(name.endsWith("pdf") ? "pdf" : "png")
-      .send(await local().artifact(id, name));
+    const bytes = await local().artifact(id, name);
+    if (name === "review.pptx") res.attachment("review.pptx");
+    res.type(name.endsWith("pdf") ? "pdf" : name.endsWith("pptx") ? "application/vnd.openxmlformats-officedocument.presentationml.presentation" : "png").send(bytes);
   });
 }

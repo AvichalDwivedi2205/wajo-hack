@@ -1,5 +1,7 @@
 # Client-review implementation and cloud verification — 2026-10-18
 
+This document records the earlier cloud checkpoint. Current Mac compilation, actual PPTX app integration, native failures and remaining live Fo gates are recorded in the [Mac acceptance audit](CLIENT-REVIEW-MAC-2026-10-18.md). The current Mac totals are 150 unit/API/relay passes, 27 existing browser passes and three separate restarted local browser/SDK PPTX acceptances; these are not actual Fo or Keynote cold-start proof.
+
 Starting remote `main` was `c8dbf2840957b982e2ccb66f017d299624d9d3e5`. The useful credential/stale-poll regression from recovery commit `c1c35354682aa270f51d239412f04b8c6a4e6dfe` is preserved on the feature branch as `6b87fcddf1980886799742dc2a17aac390a33de9`. The later user authorization explicitly supersedes the old credentials-only scope for source development. Earlier recovery documents remain historical; this feature now includes the approved client-review extension. Main is left for parent coordination.
 
 ## Gap audit and resulting implementation

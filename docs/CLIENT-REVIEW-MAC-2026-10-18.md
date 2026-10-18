@@ -27,7 +27,7 @@ The added `automation-status` command checks only the fixed Keynote target and n
 | CoreAudio helper compilation | Passed; no audio state was changed |
 | Actual Keynote dictionary extraction and helper compilation | Passed after the selector correction |
 | Native PDFKit read/render regression checks | 2 passed, including visible RGB pixels and path rejection |
-| Full unit/API/relay suite on Mac | 147 passed, 0 failed |
+| Full unit/API/relay suite on Mac | 150 passed, 0 failed, including actual PPTX rendering, tamper rejection and undo |
 | Full installed-Chrome browser suite on Mac | 27 passed, 0 failed, 0 skipped; includes direct-file credential-helper test with synthetic bytes |
 | Synthetic fixture staging and identical repeat setup | Passed |
 | Import seed into actual Keynote and save new `.key` | Passed through native UI |
@@ -40,6 +40,8 @@ The added `automation-status` command checks only the fixed Keynote target and n
 | Five accepted cold-start runs | 0 / 5; never run to acceptance |
 | Native stale-source, deny/revoke, interrupted-export gates | Never run to acceptance; synthetic tests do not establish them |
 | Three actual Fo → relay → Mac → Fo runs and approved undo | 0 / 3; never run |
+| Explicit PPTX app integration | Passed: actual editable OOXML, system Quick Look preview, Chrome PDF print, PDFKit verification and separately approved undo |
+| Restarted local browser/UI/MCP SDK PPTX acceptances | Three consecutive passes; each starts a fresh server/browser process. These are not real Fo or Keynote runs |
 
 The first native job is `06e3b57a-af46-4593-b25d-ea46657d5be5`, from plan `ee570839-1432-477c-ba6a-fc5a492586c8`. Its uncertain artifacts and consumed approval are preserved. No export retry was made. No native PDF or success receipt exists for that job.
 
@@ -63,6 +65,24 @@ macOS `qlmanage` successfully rendered the actual generated PPTX into its genuin
 
 The evidence is under `../native-evidence/pptx-proof/`: `Alder-client-review.pptx`, `Alder-client-review.pdf`, `verification.json`, three slide PNGs, and the actual `.pptx.qlpreview/` output. PPTX SHA-256 is `0daa803a059cb94e75d11b3b0895b189bccfc46d8d4bee78e032018f6e607a6d`.
 
-This establishes a viable **genuine document-generation** alternative, not a Keynote export or successful PowerPoint-app edit/resave. It still needs a separately identified adapter integrated with fresh exact approval, bound template and destination, exclusive writes, independent verification, uncertainty handling, and separately approved undo. Existing Keynote acceptance remains failed, and actual Fo round trips remain zero.
+That checkpoint established a viable **genuine document-generation** alternative, not a Keynote export or successful PowerPoint-app edit/resave. The subsequent integrated implementation and acceptance below supersede the earlier file-only limitation. Existing Keynote acceptance remains failed, and actual Fo round trips remain zero.
 
-The user requested debating a relatable real-problem demo with Claude after the Mac audit. The prepared brief is under `../native-evidence/claude-demo/brief.txt`. Automatic approval review initially rejected its external disclosure; the user then explicitly approved that exact brief. The attempted consultation subsequently returned `Not logged in`; a filtered local status check confirmed `loggedIn: false`, `authMethod: none`. No Claude response or debate exists. No credential was generated or requested in chat. Claude account sign-in is a remaining user-controlled dependency.
+The user requested debating a relatable real-problem demo with Claude after the Mac audit and explicitly approved the prepared brief under `../native-evidence/claude-demo/brief.txt`. An early local `--bare` invocation reported signed out because that flag disables OAuth and Keychain reads. The corrected local `claude --safe-mode --print` call used the existing login successfully, with tools/integrations/custom instructions disabled and no saved session. Its critique is preserved in `local-host-safe-response.txt`. Parent also completed browser debate at `https://claude.ai/chat/008fcccf-408d-4d50-b154-100b03e16b6c`. No credential was created or disclosed.
+
+## Integrated PPTX acceptance and independent audit
+
+`--review-pptx` explicitly selects a separate real adapter and fresh manifest with `outputKind: "pptx"`; it never switches after a Keynote failure. The fixed seed receives actual editable text paragraphs and exact source PNGs. Recipe identity is checked before creating the first artifact. After consumed approval, Quick Look renders the generated deck in a private temporary folder and Chrome prints that preview from a disposable profile. PDFKit checks the PDF and produces the stored page PNGs. There is no application mock, image-only deck, renamed HTML, Keynote call or claimed PowerPoint application edit/resave.
+
+The existing source/directory identity checks, fresh exact approval, expiry/revocation, exclusive no-follow writes, unique job destination, consumed-plan behavior, uncertainty preservation and separately approved hash-checked undo remain active. New strict relay metadata rejects a contradictory output kind or recipe. Verification compares the complete PPTX to regenerated approved bytes, checks complete three-page PDF text, independently rerenders each PDF page and binds all six artifacts, including the physical renderer receipt, to the final inventory. Receipt evidence is stored as `pptxEvidence`; it cannot satisfy the Keynote audit's `nativeEvidence.coldStart` requirement.
+
+Two new regressions cover fresh setup/no overwrite, adapter-mode mismatch, unapproved refusal with no artifacts, recipe-drift refusal with no artifacts, editable OOXML/image bytes, actual Mac system rendering, complete output verification, tamper refusal, consumed approval and separately approved undo. The added strict test-gateway regression also passes three real PPTX/PDF runs with ephemeral test identity, metadata-only relay results, refusal of authenticated remote artifact access and separately approved local undo. This is test-gateway proof, not production Fo. The full Mac suite passed **150/150**; the existing browser suite passed **27/27**. Three consecutive separate fresh-server/browser runs of `playwright.pptx.config.ts` passed local permission/approval, MCP SDK commit, actual PPTX/PDF downloads, independent verification, duplicate/unapproved refusal, new undo approval, unchanged sources and zero browser-issued commits/errors. Exact result logs and captured deliverables are in `../native-evidence/pptx-browser/` and `pptx-browser-current-final-run-{1,2,3}.txt`.
+
+Both read-only independent reviewers audited the integrated route. They caught a preflight ordering fault (the first PPTX could be written before recipe-drift refusal) and premature completed wording in status. Both are fixed; the zero-artifact regression covers the ordering. Both reviewers reported no remaining actionable finding. Root and the spec reviewer independently inspected all three actual stored PDF renders and found the metric, original comparison images, owner/readout and footers readable. Automated acceptance leaves `visualApproved` false; it does not manufacture human sign-off.
+
+The local preview at port 4310 now uses the explicit PPTX route with a separate `../native-pptx-data/` source root and journal. Earlier `../native-data/` Keynote sources, original template and uncertain job remain preserved. Original fixture and native-template hashes were rechecked unchanged after integration. The branch was published only after the user's explicit approval; nothing was merged or deployed.
+
+## Demo decision and remaining blockers
+
+The demo should center on **a stale number that would change a client recommendation**. Current source rows and the existing rule produce 4.5% retained conversion, below the 5% gate, while the prior handout claimed 5.5% gross. A local exact approval then produces the useful editable deck/PDF, preserves originals, and supports separately approved removal. This is a bounded synthetic Alder workflow, not general-purpose document ingestion. Claude's suggested arbitrary perturbed-dataset demonstration is outside this fixed cohort/parser contract; do not claim it works without implementing and testing it.
+
+The [demo plan](CLIENT-REVIEW-DEMO-PLAN.md) uses the real source evidence and output path. It removes a manufactured countdown and raw terminal theatrics. Recording remains blocked by actual Fo registration and three real Fo → relay → Mac → Fo runs with approved undo, plus separate configuration/expiry approval and credential delivery controlled by parent. Keynote remains **0/5** and Fo **0/3**. No production configuration, recording or submission was performed.

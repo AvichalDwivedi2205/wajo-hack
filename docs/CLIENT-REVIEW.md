@@ -1,6 +1,33 @@
 # Client review: cloud demo and native handoff
 
-The cloud implementation prepares the bounded Alder review requested by “My client review starts in ten minutes. Fo, get everything ready.” It reconciles ten synthetic sources, previews three slides, obtains exact local approval, and exposes asynchronous review jobs through MCP. The Linux HTML/PDF result is explicitly a simulation. Native Keynote source is supplied; it has not been compiled or executed on a Mac.
+The implementation prepares a bounded Alder client review. It reconciles ten synthetic sources, previews three slides, obtains exact local approval, and exposes asynchronous review jobs through MCP. The Linux HTML/PDF result is explicitly a simulation. On the audited Mac, the explicit PPTX route creates a real editable PowerPoint deck and PDF. Keynote compilation passed but its imported template/save/export acceptance failed. See the [Mac audit](CLIENT-REVIEW-MAC-2026-10-18.md) for current evidence and separate live Fo gates.
+
+## Actual editable PowerPoint/PDF route on Mac
+
+Requirements: macOS, installed Google Chrome at its standard application path, the compiled read-only PDF helper (`npm run macos:review:build`), and a fresh private synthetic review root. PowerPoint, Keynote Automation and additional OS permissions are not required for this route. It does not edit/resave in the PowerPoint application or export through Keynote.
+
+```sh
+# Parent directory must already exist. Setup refuses an existing root.
+npm run review:pptx:setup -- /exact/new/app-data/client-review
+FO_FIX_DATA=/exact/new/app-data/pptx.sqlite \
+FO_FIX_REVIEW_ROOT=/exact/new/app-data/client-review \
+npm start -- --review-pptx
+```
+
+The mode is explicit: no failed Keynote job is retried or converted. The UI says **SYNTHETIC DATA / EDITABLE POWERPOINT**, and snapshots/jobs carry `outputKind: "pptx"`. Approval binds the full source snapshot, exact output kind, fixed recipe hash, slide text, unique destination and expiry. All output writes occur after approval is consumed. Original files and earlier native journals remain separate.
+
+The fixed, SHA-pinned OOXML seed receives editable text runs and the exact two source PNGs. The app checks recipe drift before writing any artifact. System Quick Look previews the generated `.pptx` in a fresh private temporary folder; a new headless Chrome profile prints that actual preview to PDF with network host resolution blocked. No personal browser profile is read. Only the guarded output writer publishes bytes into the approved job directory.
+
+Verification compares the entire PPTX to deterministic regeneration from approved text/images/template, checks complete PDF text and exactly three pages with PDFKit, and compares three separately rendered PDF page PNGs. A physical `receipt.json` binds the recipe, renderer/version, PPTX and PDF hashes into the final artifact inventory. This proves file contents and correspondence, using repeated invocations of the same generator/rendering library; it does not substitute for actual visual inspection or prove PowerPoint application edit/resave. Verified PPTX download and PDF/page viewing remain local-only. Undo requires a fresh exact local approval and refuses changed or unrelated files.
+
+Run actual browser/SDK acceptance after setup:
+
+```sh
+FO_FIX_REVIEW_ROOT=/exact/new/app-data/client-review \
+npx playwright test -c playwright.pptx.config.ts
+```
+
+The test starts the actual local app, uses local UI approval and MCP SDK execution, downloads and independently verifies genuine files, checks duplicate/unapproved refusal, then separately approves undo and verifies original hashes. It is **local SDK proof**, not a Fo account round trip. Actual Fo registration, three live Fo → relay → Mac → Fo runs, and their approved undo are still required before recording. PPTX tests never count toward five Keynote cold-start runs.
 
 ## Run the cloud demonstration
 

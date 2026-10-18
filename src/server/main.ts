@@ -14,6 +14,7 @@ import { reviewDemoRoot } from "../review/setup.ts";
 import {
   SyntheticReviewAdapter,
   KeynoteReviewAdapter,
+  PptxReviewAdapter,
 } from "../review/adapter.ts";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
@@ -34,16 +35,18 @@ try {
 const port = config.port;
 const real = process.argv.includes("--macos");
 const reviewNative = process.argv.includes("--review-native");
+const reviewPptx = process.argv.includes("--review-pptx");
 const reviewEnabled =
   reviewNative ||
+  reviewPptx ||
   process.argv.includes("--review-demo") ||
   process.env.FO_FIX_REVIEW_ENABLED === "1";
 if (
-  reviewNative &&
-  (!real || config.mode !== "local" || !process.env.FO_FIX_REVIEW_ROOT)
+  (reviewNative || reviewPptx) &&
+  ((reviewNative && !real) || (reviewNative && reviewPptx) || process.platform !== "darwin" || config.mode !== "local" || !process.env.FO_FIX_REVIEW_ROOT)
 ) {
   console.error(
-    "Native review requires --macos --review-native, an explicitly scoped FO_FIX_REVIEW_ROOT and the reviewed native helper. No permissions or credentials are configured automatically.",
+    "Select one explicit Mac review route: --macos --review-native or --review-pptx, with local mode, FO_FIX_REVIEW_ROOT and the reviewed PDF helper. No permissions or credentials are configured automatically.",
   );
   process.exit(2);
 }
@@ -84,10 +87,10 @@ const review =
   reviewEnabled && store
     ? new ReviewEngine(
         store,
-        reviewNative
+        reviewNative || reviewPptx
           ? resolve(process.env.FO_FIX_REVIEW_ROOT!)
           : reviewDemoRoot(root, dataPath),
-        reviewNative
+        reviewPptx ? new PptxReviewAdapter() : reviewNative
           ? new KeynoteReviewAdapter(
               join(root, "companion/macos/.build/fo-review"),
             )

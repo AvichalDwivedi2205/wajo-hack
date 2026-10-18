@@ -59,7 +59,7 @@ export class OutputDirectory {
   }
   async write(name: string, bytes: Uint8Array | string) {
     invariant(
-      /^(review\.(pdf|html|json)|page-[123]\.png|template\.key|before\.png|proposed\.png|request\.json)$/.test(
+      /^(review\.(pdf|html|json|pptx)|page-[123]\.png|template\.key|before\.png|proposed\.png|request\.json|receipt\.json)$/.test(
         name,
       ),
       "REVIEW_OUTPUT",

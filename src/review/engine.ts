@@ -15,6 +15,7 @@ import { readSources } from "./manifest.ts";
 import { analyze } from "./evidence.ts";
 import { slidesFor } from "./render.ts";
 import { checkOutput, nativeReceipt, type ReviewAdapter } from "./adapter.ts";
+import { pptxRecipeSha256 } from "./pptx.ts";
 import type {
   ReviewAgent,
   ReviewSnapshot,
@@ -57,6 +58,13 @@ export class ReviewEngine implements ReviewAgent {
   }
   private get data() {
     return this.store.data.review!;
+  }
+  private get outputKind() {
+    return this.adapter.outputKind ?? (this.adapter.synthetic ? "simulation" : "keynote");
+  }
+  private sourceMode(sources: Awaited<ReturnType<typeof readSources>>) {
+    return sources.manifest.synthetic === this.adapter.synthetic &&
+      (sources.manifest.outputKind === "pptx") === (this.outputKind === "pptx");
   }
   private serial<T>(operation: () => Promise<T>): Promise<T> {
     invariant(
@@ -123,7 +131,7 @@ export class ReviewEngine implements ReviewAgent {
       "Review access or its scoped directories changed during inspection.",
     );
     invariant(
-      sources.manifest.synthetic === this.adapter.synthetic &&
+      this.sourceMode(sources) &&
         sha256(JSON.stringify({ sources: sources.digest, scope })) ===
           snapshot.digest,
       "REVIEW_STALE",
@@ -138,6 +146,7 @@ export class ReviewEngine implements ReviewAgent {
       enabled: true,
       authority: "here",
       synthetic: this.adapter.synthetic,
+      outputKind: this.outputKind,
       folders: ["Metrics", "Brief", "Creative"].map((f) => join(this.root, f)),
       destination: join(this.root, "Deliverables"),
       permission: {
@@ -148,7 +157,10 @@ export class ReviewEngine implements ReviewAgent {
       },
       plans: this.data.plans.slice(-8).reverse(),
       jobs: this.data.jobs.slice(-8).reverse(),
-      blockers: this.adapter.synthetic
+      blockers: this.outputKind === "pptx" ? [
+        "This route creates an editable PowerPoint deck and PDF on this Mac through OOXML, system Quick Look and Chrome print. No Keynote export or PowerPoint edit/resave is claimed.",
+        "Actual visual sign-off and three live Fo round trips remain separate acceptance gates. Keynote cold-start acceptance is not passed by this alternative.",
+      ] : this.adapter.synthetic
         ? [
             "Synthetic HTML/PDF simulation; no actual .key template or native Keynote export.",
             "Mac cold-start runs, actual visual inspection and live Fo round trips are not verified.",
@@ -210,7 +222,7 @@ export class ReviewEngine implements ReviewAgent {
     const sources = await readSources(this.root),
       scope = await this.scope();
     invariant(
-      sources.manifest.synthetic === this.adapter.synthetic,
+      this.sourceMode(sources),
       "REVIEW_MODE",
       "The source manifest and adapter mode must match. There is no native-to-HTML fallback.",
     );
@@ -225,6 +237,7 @@ export class ReviewEngine implements ReviewAgent {
       digest: sha256(JSON.stringify({ sources: sources.digest, scope })),
       capturedAt: new Date(this.clock()).toISOString(),
       synthetic: this.adapter.synthetic,
+      outputKind: this.outputKind,
       dataClassification: "synthetic-demo",
       cohort: sources.manifest.cohort,
       cutoff: sources.manifest.cutoff,
@@ -259,7 +272,7 @@ export class ReviewEngine implements ReviewAgent {
       "The bounded review journal is full. No history is silently deleted.",
     );
     const id = randomUUID();
-    const recipeSha256 = this.adapter.synthetic
+    const recipeSha256 = this.outputKind === "pptx" ? await pptxRecipeSha256() : this.adapter.synthetic
       ? sha256("synthetic-html-pdf-v1")
       : sha256(
           await readFile(
@@ -279,7 +292,7 @@ export class ReviewEngine implements ReviewAgent {
       destination: join(this.root, "Deliverables", `review-${id}`),
       expiresAt: new Date(this.clock() + 5 * 60_000).toISOString(),
       state: "pending",
-      recipe: "keynote-fixed-slots-v1",
+      recipe: this.outputKind === "pptx" ? "pptx-fixed-slots-v1" : "keynote-fixed-slots-v1",
       recipeSha256,
       direction: "create",
     };
@@ -382,9 +395,10 @@ export class ReviewEngine implements ReviewAgent {
         planId: p.id,
         state: "queued",
         synthetic: this.adapter.synthetic,
+        outputKind: this.outputKind,
         startedAt: new Date(this.clock()).toISOString(),
         message:
-          "Approval consumed and job journaled. Native work has not been verified.",
+          "Approval consumed and job journaled. Output files have not been verified.",
         artifacts: [],
       };
       this.data.jobs.push(job);
@@ -409,7 +423,7 @@ export class ReviewEngine implements ReviewAgent {
             );
             job.state = "running";
             job.message =
-              "Creating only the approved output copy. Native export may take up to two minutes.";
+              "Creating only the approved output copy. Rendering may take up to two minutes.";
             this.store.save();
             await safePath(this.root, "Deliverables");
             invariant(
@@ -478,7 +492,7 @@ export class ReviewEngine implements ReviewAgent {
               }),
             ]);
             invariant(
-              this.adapter.synthetic || nativeEvidence,
+              this.outputKind !== "keynote" || nativeEvidence,
               "REVIEW_RECIPE",
               "Native jobs require an actual fixed-helper receipt.",
             );
@@ -487,14 +501,14 @@ export class ReviewEngine implements ReviewAgent {
               "REVIEW_INTERRUPTED",
               "The bounded job deadline ended.",
             );
-            const { verification, checkedArtifacts } = await checkOutput(
+            const { verification, checkedArtifacts, pptxEvidence } = await checkOutput(
               this.root,
               localName(this.root, p.destination),
               p,
               this.nativeHelper,
             );
             await this.fresh(p.snapshot);
-            const receipt = this.adapter.synthetic
+            const receipt = this.outputKind !== "keynote"
               ? undefined
               : await nativeReceipt(
                   this.root,
@@ -508,13 +522,13 @@ export class ReviewEngine implements ReviewAgent {
               artifacts.some(
                 (a) =>
                   a.name ===
-                  (this.adapter.synthetic ? "review.html" : "review.key"),
+                  (this.outputKind === "pptx" ? "review.pptx" : this.adapter.synthetic ? "review.html" : "review.key"),
               ),
               "REVIEW_ARTIFACT",
               "The expected editable output is missing.",
             );
             invariant(
-              this.adapter.synthetic ||
+              this.outputKind !== "keynote" ||
                 artifacts.some(
                   (a) =>
                     a.name === "receipt.json" && a.sha256 === receipt?.sha256,
@@ -530,8 +544,9 @@ export class ReviewEngine implements ReviewAgent {
             job.verification = verification;
             job.artifacts = artifacts;
             if (receipt) job.nativeEvidence = receipt.evidence;
+            if (pptxEvidence) job.pptxEvidence = pptxEvidence;
             job.state = "succeeded";
-            job.message = this.adapter.synthetic
+            job.message = this.outputKind === "pptx" ? "Editable PowerPoint deck and PDF created here on this Mac. Complete deck bytes, PDF text and three independent PDF page renders checked; visual sign-off remains separate." : this.adapter.synthetic
               ? "Synthetic HTML/PDF simulation verified. This is not a Keynote or hardware result."
               : "Native output contents and page renders checked. Actual visual sign-off and readiness runs are still required.";
           } catch (error) {
@@ -562,7 +577,7 @@ export class ReviewEngine implements ReviewAgent {
     invariant(
       names.length <= 10 &&
         names.every((n) =>
-          /^(review\.(pdf|html|json|key)|page-[123]\.png|template\.key|before\.png|proposed\.png|request\.json|receipt\.json)$/.test(
+          /^(review\.(pdf|html|json|key|pptx)|page-[123]\.png|template\.key|before\.png|proposed\.png|request\.json|receipt\.json)$/.test(
             n,
           ),
         ),
@@ -617,13 +632,13 @@ export class ReviewEngine implements ReviewAgent {
         await this.fresh(plan.snapshot);
         if (job.artifacts.length)
           await this.inventoryMatches(job, plan.destination);
-        const { verification, checkedArtifacts } = await checkOutput(
+        const { verification, checkedArtifacts, pptxEvidence } = await checkOutput(
           this.root,
           localName(this.root, plan.destination),
           plan,
           this.nativeHelper,
         );
-        const receipt = this.adapter.synthetic
+        const receipt = this.outputKind !== "keynote"
           ? undefined
           : await nativeReceipt(
               this.root,
@@ -632,7 +647,7 @@ export class ReviewEngine implements ReviewAgent {
               job.nativeEvidence,
             );
         invariant(
-          this.adapter.synthetic || receipt,
+          this.outputKind !== "keynote" || receipt,
           "REVIEW_RECIPE",
           "The native recipe receipt must be checked before promotion.",
         );
@@ -642,13 +657,13 @@ export class ReviewEngine implements ReviewAgent {
           artifacts.some(
             (a) =>
               a.name ===
-              (this.adapter.synthetic ? "review.html" : "review.key"),
+              (this.outputKind === "pptx" ? "review.pptx" : this.adapter.synthetic ? "review.html" : "review.key"),
           ),
           "REVIEW_ARTIFACT",
           "The editable output is missing.",
         );
         invariant(
-          this.adapter.synthetic ||
+          this.outputKind !== "keynote" ||
             artifacts.some(
               (a) => a.name === "receipt.json" && a.sha256 === receipt?.sha256,
             ),
@@ -663,8 +678,9 @@ export class ReviewEngine implements ReviewAgent {
         );
         job.artifacts = artifacts;
         if (receipt) job.nativeEvidence = receipt.evidence;
+        if (pptxEvidence) job.pptxEvidence = pptxEvidence;
         job.state = "succeeded";
-        job.message = this.adapter.synthetic
+        job.message = this.outputKind === "pptx" ? "Editable PowerPoint deck and PDF created here on this Mac. Complete deck bytes, PDF text and three independent PDF page renders checked; visual sign-off remains separate." : this.adapter.synthetic
           ? "Synthetic HTML/PDF simulation verified. This is not a Keynote or hardware result."
           : "Native output contents and page renders checked. Actual visual sign-off and readiness runs are still required.";
         job.verification = {
@@ -788,7 +804,7 @@ export class ReviewEngine implements ReviewAgent {
     invariant(
       job.state === "succeeded" &&
         job.artifacts.some((a) => a.name === name) &&
-        /^(review\.pdf|page-[123]\.png)$/.test(name),
+        /^(review\.(pdf|pptx)|page-[123]\.png)$/.test(name),
       "REVIEW_ARTIFACT",
       "Only verified PDF/page artifacts are viewable here.",
       404,

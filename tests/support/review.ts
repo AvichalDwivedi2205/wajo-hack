@@ -85,8 +85,8 @@ export async function prepared(c: ReviewFixture) {
   const plan = await c.engine.prepare(snapshot.id);
   return { snapshot, plan };
 }
-export async function finished(c: ReviewFixture, id: string) {
-  for (let i = 0; i < 200; i++) {
+export async function finished(c: ReviewFixture, id: string, polls = 200) {
+  for (let i = 0; i < polls; i++) {
     const job = c.engine.status().jobs.find((j) => j.id === id)!;
     if (!["queued", "running"].includes(job.state)) return job;
     await delay(25);

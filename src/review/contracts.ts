@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+export type ReviewOutputKind = "simulation" | "keynote" | "pptx";
+const outputKind = z.enum(["simulation", "keynote", "pptx"]);
+
 export const reviewId = z.object({ id: z.uuid() }).strict();
 export const reviewPrepare = z.object({ snapshotId: z.uuid() }).strict();
 export const reviewApproval = z
@@ -29,6 +32,7 @@ export type ReviewSnapshot = {
   digest: string;
   capturedAt: string;
   synthetic: boolean;
+  outputKind?: ReviewOutputKind;
   dataClassification: "synthetic-demo";
   cohort: string;
   cutoff: string;
@@ -50,7 +54,7 @@ export type ReviewPlan = {
   destination: string;
   expiresAt: string;
   state: "pending" | "approved" | "denied" | "consumed";
-  recipe: "keynote-fixed-slots-v1";
+  recipe: "keynote-fixed-slots-v1" | "pptx-fixed-slots-v1";
   direction: "create" | "undo";
   jobId?: string;
   recipeSha256: string;
@@ -60,6 +64,7 @@ export type ReviewJob = {
   planId: string;
   state: "queued" | "running" | "succeeded" | "failed" | "uncertain" | "undone";
   synthetic: boolean;
+  outputKind?: ReviewOutputKind;
   startedAt: string;
   completedAt?: string;
   message: string;
@@ -71,6 +76,7 @@ export type ReviewJob = {
     recipeSha256: string;
     copyLeftOpen: true;
   };
+  pptxEvidence?: z.infer<typeof pptxEvidenceSchema>;
   verification?: {
     pages: number;
     textChecked: boolean;
@@ -83,6 +89,7 @@ export type ReviewStatus = {
   enabled: true;
   authority: "here" | "companion";
   synthetic: boolean;
+  outputKind?: ReviewOutputKind;
   folders: string[];
   destination: string;
   permission: { active: boolean; expiresAt?: string };
@@ -111,6 +118,7 @@ export const reviewSnapshotSchema = z
     digest,
     capturedAt: z.iso.datetime(),
     synthetic: z.boolean(),
+    outputKind: outputKind.optional(),
     dataClassification: z.literal("synthetic-demo"),
     cohort: z.string().max(64),
     cutoff: z.iso.datetime(),
@@ -143,7 +151,8 @@ export const reviewSnapshotSchema = z
       )
       .length(10),
   })
-  .strict();
+  .strict()
+  .refine(s => !s.outputKind || s.synthetic === (s.outputKind === "simulation"), { message: "Output kind must agree with simulation status." });
 export const reviewPlanSchema = z
   .object({
     id: z.uuid(),
@@ -164,12 +173,13 @@ export const reviewPlanSchema = z
     destination: z.string().max(1024),
     expiresAt: z.iso.datetime(),
     state: z.enum(["pending", "approved", "denied", "consumed"]),
-    recipe: z.literal("keynote-fixed-slots-v1"),
+    recipe: z.enum(["keynote-fixed-slots-v1", "pptx-fixed-slots-v1"]),
     recipeSha256: digest,
     direction: z.enum(["create", "undo"]),
     jobId: z.uuid().optional(),
   })
-  .strict();
+  .strict()
+  .refine(p => (p.recipe === "pptx-fixed-slots-v1") === (p.snapshot.outputKind === "pptx"), { message: "The selected output kind and approved recipe must match." });
 export const nativeEvidenceSchema = z
   .object({
     coldStart: z.boolean(),
@@ -179,6 +189,13 @@ export const nativeEvidenceSchema = z
     copyLeftOpen: z.literal(true),
   })
   .strict();
+export const pptxEvidenceSchema = z.object({
+  renderer: z.literal("macos-quick-look+chrome"),
+  chromeVersion: z.string().min(1).max(80),
+  recipeSha256: digest,
+  pptxSha256: digest,
+  pdfSha256: digest,
+}).strict();
 export const reviewJobSchema = z
   .object({
     id: z.uuid(),
@@ -192,6 +209,7 @@ export const reviewJobSchema = z
       "undone",
     ]),
     synthetic: z.boolean(),
+    outputKind: outputKind.optional(),
     startedAt: z.iso.datetime(),
     completedAt: z.iso.datetime().optional(),
     message: z.string().max(512),
@@ -204,6 +222,7 @@ export const reviewJobSchema = z
               "review.html",
               "review.json",
               "review.key",
+              "review.pptx",
               "page-1.png",
               "page-2.png",
               "page-3.png",
@@ -224,6 +243,7 @@ export const reviewJobSchema = z
       )
       .max(10),
     nativeEvidence: nativeEvidenceSchema.optional(),
+    pptxEvidence: pptxEvidenceSchema.optional(),
     verification: z
       .object({
         pages: z.literal(3),
@@ -236,6 +256,9 @@ export const reviewJobSchema = z
       .optional(),
   })
   .strict()
-  .refine((j) => j.synthetic || j.state !== "succeeded" || !!j.nativeEvidence, {
+  .refine(j => !j.outputKind || j.synthetic === (j.outputKind === "simulation"), { message: "Output kind must agree with simulation status." })
+  .refine((j) => j.state !== "succeeded" || (j.outputKind === "pptx"
+    ? !j.synthetic && !j.nativeEvidence && !!j.pptxEvidence
+    : j.synthetic || !!j.nativeEvidence), {
     message: "Verified native results require the fixed native recipe receipt.",
   });

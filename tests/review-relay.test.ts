@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type AddressInfo } from "node:net";
 import { once } from "node:events";
+import { rm } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -11,27 +13,35 @@ import { FixtureAdapter } from "../src/companion/adapter.ts";
 import { createApp } from "../src/server/app.ts";
 import { SessionBroker } from "../src/server/session.ts";
 import { runDeviceSession } from "../src/companion/bridge.ts";
-import { SyntheticReviewAdapter } from "../src/review/adapter.ts";
+import { SyntheticReviewAdapter, PptxReviewAdapter } from "../src/review/adapter.ts";
+import { setupPptxReview } from "../src/review/setup-pptx.ts";
 import { readSources } from "../src/review/manifest.ts";
 import { identityFixture, remoteFixture } from "./support/remote.ts";
 import { reviewFixture, finished } from "./support/review.ts";
 import { reviewJobSchema } from "../src/review/contracts.ts";
 import { agentRequest } from "../src/shared/relay.ts";
 
-test(
-  "three synthetic SDK/gateway/companion review runs preserve local authority and an export lasting beyond the 25-second audio timeout",
-  { timeout: 60_000 },
+for (const route of ["simulation", "pptx"] as const) test(
+  route === "simulation" ? "three synthetic SDK/gateway/companion review runs preserve local authority and an export lasting beyond the 25-second audio timeout" : "three real Mac PPTX SDK/test-gateway/companion runs preserve strict metadata, local authority and approved undo (not actual Fo)",
+  { timeout: 60_000, skip: route === "pptx" && process.platform !== "darwin" },
   async () => {
     let calls = 0;
-    const actual = new SyntheticReviewAdapter();
+    const actual = route === "pptx" ? new PptxReviewAdapter() : new SyntheticReviewAdapter();
     const c = await reviewFixture({
-      synthetic: true,
+      synthetic: actual.synthetic,
+      outputKind: route === "pptx" ? "pptx" : "simulation",
       execute: async (...args) => {
         calls++;
-        if (calls === 1) await delay(26_000);
+        if (calls === 1 && route === "simulation") await delay(26_000);
         await actual.execute(...args);
       },
     });
+    if (route === "pptx") {
+      // Replace only this freshly created disposable test fixture, before any
+      // lease or snapshot exists. No user root or prior journal is involved.
+      await rm(c.root, { recursive: true });
+      await setupPptxReview(c.root, fileURLToPath(new URL("../fixtures/client-review/", import.meta.url)), fileURLToPath(new URL("../fixtures/keynote-seed/Alder-review-seed.pptx", import.meta.url)));
+    }
     const audio = new Engine(c.store, new FixtureAdapter(c.store)),
       actor: OwnerService = audio;
     actor.review = c.engine;
@@ -128,6 +138,7 @@ test(
         true,
       );
       const original = (await readSources(c.root)).digest;
+      const owner = await gateway.login();
       for (let run = 0; run < 3; run++) {
         const snap = await call("review.snapshot");
         assert.notEqual(snap.isError, true);
@@ -143,7 +154,6 @@ test(
           true,
         );
         if (run === 0) {
-          const owner = await gateway.login();
           const cloud = await gateway.request(
             `/api/review/plans/${plan.id}/approve`,
             {
@@ -173,7 +183,7 @@ test(
         assert(Date.now() - start < 5000);
         const job = (commit.structuredContent as any).result;
         assert.equal(job.state, "queued");
-        if (run === 0) {
+        if (run === 0 && route === "simulation") {
           await delay(25_100);
           const pending = await call("review.verify", { id: job.id });
           assert.notEqual(pending.isError, true);
@@ -182,7 +192,7 @@ test(
             "running",
           );
         }
-        const result = await finished(c, job.id);
+        const result = await finished(c, job.id, route === "pptx" ? 1200 : 200);
         assert.equal(result.state, "succeeded", result.message);
         const verified = await call("review.verify", { id: job.id });
         assert.notEqual(verified.isError, true);
@@ -190,6 +200,15 @@ test(
           (verified.structuredContent as any).result.verification.pages,
           3,
         );
+        if (route === "pptx") {
+          const metadata = (verified.structuredContent as any).result;
+          assert.equal(metadata.outputKind, "pptx");
+          assert.equal(metadata.nativeEvidence, undefined);
+          assert.equal(metadata.pptxEvidence.renderer, "macos-quick-look+chrome");
+          assert(metadata.artifacts.some((a: { name: string }) => a.name === "review.pptx"));
+          const remoteArtifact = await gateway.request(`/api/review/jobs/${job.id}/artifacts/review.pptx`, { headers: { Cookie: owner.cookie } });
+          assert.equal(remoteArtifact.status, 403);
+        }
         assert.equal(JSON.stringify(verified).includes("base64"), false);
         assert.equal((await readSources(c.root)).digest, original);
         const pdf = await fetch(

@@ -3,6 +3,7 @@ import { invariant } from "../core/errors.ts";
 import { safeRead, sha256 } from "./files.ts";
 import { boundedZip } from "./zip.ts";
 import { validatePng } from "./png.ts";
+import { validatePptxSeed } from "./pptx.ts";
 
 export const roles = [
   "metrics",
@@ -22,7 +23,7 @@ const entry = z
     path: z
       .string()
       .regex(
-        /^(Metrics|Brief|Creative)\/[A-Za-z0-9_-]+\.(xlsx|csv|pdf|txt|png|key|json)$/,
+        /^(Metrics|Brief|Creative)\/[A-Za-z0-9_-]+\.(xlsx|csv|pdf|txt|png|key|pptx|json)$/,
       ),
     revision: z.string().regex(/^[a-zA-Z0-9-]{1,40}$/),
     status: z.enum(["current", "superseded"]),
@@ -35,6 +36,7 @@ export const manifestSchema = z
   .object({
     schema: z.literal(1),
     synthetic: z.boolean(),
+    outputKind: z.literal("pptx").optional(),
     cohort: z.string().regex(/^[a-z0-9-]{1,64}$/),
     dataClassification: z.literal("synthetic-demo"),
     cutoff: z.iso.datetime(),
@@ -61,6 +63,7 @@ export async function readSources(root: string) {
   const manifest = manifestSchema.parse(
     JSON.parse(manifestBytes.toString("utf8")),
   );
+  invariant(!manifest.outputKind || !manifest.synthetic, "REVIEW_MODE", "Editable PPTX is a real file workflow with synthetic source data.");
   invariant(
     new Set(manifest.files.map((f) => f.id)).size === 10 &&
       new Set(manifest.files.map((f) => f.path)).size === 10,
@@ -89,7 +92,7 @@ export async function readSources(root: string) {
       notes: "txt",
       before: "png",
       proposed: "png",
-      template: manifest.synthetic ? "json" : "key",
+      template: manifest.outputKind === "pptx" ? "pptx" : manifest.synthetic ? "json" : "key",
     }[file.role];
     invariant(
       file.path.startsWith(folder + "/") && file.path.endsWith("." + extension),
@@ -108,7 +111,9 @@ export async function readSources(root: string) {
     );
     if (file.role === "before" || file.role === "proposed")
       validatePng(content);
-    if (file.role === "template" && !manifest.synthetic) {
+    if (file.role === "template" && manifest.outputKind === "pptx")
+      validatePptxSeed(content);
+    if (file.role === "template" && !manifest.synthetic && !manifest.outputKind) {
       invariant(
         content.subarray(0, 2).toString() === "PK",
         "REVIEW_TEMPLATE",

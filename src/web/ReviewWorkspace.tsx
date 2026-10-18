@@ -170,9 +170,9 @@ export function ReviewWorkspace({ request }: { request: Request }) {
       <div className="review-intro">
         <span className="eyebrow">ALDER / CLIENT REVIEW</span>
         <h1>
-          Ten minutes.
+          One stale number.
           <br />
-          <em>One clear decision.</em>
+          <em>A different decision.</em>
         </h1>
         <p>
           Bring the evidence together. Review three slides. Let Fo prepare the
@@ -183,7 +183,7 @@ export function ReviewWorkspace({ request }: { request: Request }) {
             ? "LOCAL COMPANION REQUIRED"
             : local.synthetic
               ? "SYNTHETIC FILE DEMO"
-              : "SYNTHETIC DATA / NATIVE KEYNOTE"}
+              : local.outputKind === "pptx" ? "SYNTHETIC DATA / EDITABLE POWERPOINT" : "SYNTHETIC DATA / NATIVE KEYNOTE"}
         </span>
       </div>
       {error && (
@@ -293,7 +293,7 @@ export function ReviewWorkspace({ request }: { request: Request }) {
                   <p>
                     The prior-slide PDF handout records <s>5.5%</s> gross
                     conversion.
-                    {!selected.synthetic &&
+                    {!selected.synthetic && selected.outputKind !== "pptx" &&
                       " Native template slots are checked at commit."}
                   </p>
                   <h2>
@@ -383,7 +383,7 @@ export function ReviewWorkspace({ request }: { request: Request }) {
                 <span className="review-tag">
                   {local.synthetic
                     ? "HTML/PDF SIMULATION"
-                    : "KEYNOTE COPY + NATIVE PDF"}
+                    : local.outputKind === "pptx" ? "EDITABLE POWERPOINT + PDF" : "KEYNOTE COPY + NATIVE PDF"}
                 </span>
               </div>
               {plan.direction === "create" &&
@@ -447,6 +447,7 @@ export function ReviewWorkspace({ request }: { request: Request }) {
                     ? "Every generated file must still match its recorded hash. Unrelated or changed files cause refusal. Originals are preserved."
                     : local.synthetic
                       ? "This produces the disclosed synthetic HTML/PDF simulation. It does not edit or export a native Keynote deck."
+                      : local.outputKind === "pptx" ? "Create an editable PowerPoint deck and PDF here on this Mac. The fixed template receives only the approved text and source images; macOS previews the actual deck and Chrome prints that preview. Originals are preserved. This route does not use Keynote."
                       : "A fixed native recipe copies the actual template, edits only approved slots, saves and exports PDF. Originals are preserved; the edited copy remains open."}
                 </p>
                 <p>
@@ -519,7 +520,7 @@ export function ReviewWorkspace({ request }: { request: Request }) {
               {local.jobs.map((job) => (
                 <article key={job.id}>
                   <h3>
-                    {job.synthetic ? "Synthetic review" : "Native review"} ·{" "}
+                    {job.outputKind === "pptx" ? "PowerPoint review" : job.synthetic ? "Synthetic review" : "Native review"} ·{" "}
                     {job.state}
                   </h3>
                   <p role="status">{job.message}</p>
@@ -573,6 +574,7 @@ export function ReviewWorkspace({ request }: { request: Request }) {
                       >
                         Open verified local PDF
                       </a>
+                      {job.outputKind === "pptx" && <a href={`/api/review/jobs/${job.id}/artifacts/review.pptx`} download="review.pptx">Download verified editable PowerPoint deck</a>}
                       <div className="review-renderings">
                         {[1, 2, 3].map((n) => (
                           <img
@@ -626,10 +628,10 @@ export function ReviewWorkspace({ request }: { request: Request }) {
               <p key={b}>{b}</p>
             ))}
             <p>
-              Required: three consecutive real Fo → relay → Mac → Fo runs; five
-              cold-start native Keynote copy/edit/export runs; actual rendered
-              outputs checked; originals unchanged; stale-source and permission
-              failures tested.
+              Required: three consecutive real Fo → relay → Mac → Fo runs;
+              actual rendered outputs checked; originals unchanged; stale-source
+              and permission failures tested. Keynote acceptance separately
+              requires five cold-start native copy/edit/export runs.
             </p>
             <b>Cloud simulations do not pass those hardware gates.</b>
           </section>
