@@ -50,3 +50,19 @@ Raw local build/test logs, native inspection JSON, regression outputs, initial b
 ## Readiness
 
 `nativeReady`, `liveFoReady`, and `readyForLiveDemo` remain false. A simulation does not satisfy the user's requested alternative. Recording must use a working real path. Production activation still requires the separately controlled digest-only credential export, exact approved expiry/configuration, reviewed source deployment, and authorized Fo registration. None was attempted here.
+
+## Independent audit and actual PowerPoint alternative
+
+Two independent read-only reviewers audited `dab01b6...d0822f8`. The standards reviewer found no actionable new standards or safety defect. The spec reviewer identified the unmet template contract and all remaining native/live gates; it did not certify readiness. Both confirmed that the permission alert alone is insufficient evidence for broader system permissions.
+
+After the user reported that Keynote was force-quit and authorized evaluating PowerPoint, isolated ordinary-save probes ran on a fresh disposable `.key` in `/private/tmp`. `saveIn:nil as:0` returned Apple-event `-1700` (coercion failure); the valid native format with no destination returned `-1715` (parameter not accessed). Neither establishes a successful save. The original saved template remains hash-identical. No broader permission was granted and no uncertain production export was retried.
+
+PowerPoint and LibreOffice are not installed. A **real editable PPTX feasibility proof** succeeded without controlling either app. The development-only generator at `.fo-fix/pptx-proof.ts` updates the genuine OOXML seed with the exact previously approved slide text and original screenshot bytes, writes a new `.pptx` exclusively, and verifies complete text and image hashes. This is file-level feasibility work outside the guarded job engine, not a fresh approved Fo execution.
+
+macOS `qlmanage` successfully rendered the actual generated PPTX into its genuine three-slide Quick Look preview. A fresh headless Chrome process captured each actual slide and printed that preview into a three-page PDF. Native PDFKit extracted the correct complete text. Root and an independent read-only reviewer inspected all three rendered slides. The reviewer additionally checked every editable text shape, image, ZIP part, preview attachment, and normalized PDF page text. Only the three slide XML parts differ from the seed; the two images retain the source bytes.
+
+The evidence is under `../native-evidence/pptx-proof/`: `Alder-client-review.pptx`, `Alder-client-review.pdf`, `verification.json`, three slide PNGs, and the actual `.pptx.qlpreview/` output. PPTX SHA-256 is `0daa803a059cb94e75d11b3b0895b189bccfc46d8d4bee78e032018f6e607a6d`.
+
+This establishes a viable **genuine document-generation** alternative, not a Keynote export or successful PowerPoint-app edit/resave. It still needs a separately identified adapter integrated with fresh exact approval, bound template and destination, exclusive writes, independent verification, uncertainty handling, and separately approved undo. Existing Keynote acceptance remains failed, and actual Fo round trips remain zero.
+
+The user requested debating a relatable real-problem demo with Claude after the Mac audit. The prepared brief is under `../native-evidence/claude-demo/brief.txt`. Automatic approval review initially rejected its external disclosure; the user then explicitly approved that exact brief. The attempted consultation subsequently returned `Not logged in`; a filtered local status check confirmed `loggedIn: false`, `authMethod: none`. No Claude response or debate exists. No credential was generated or requested in chat. Claude account sign-in is a remaining user-controlled dependency.
