@@ -1,0 +1,32 @@
+# Replace this hostname only after DNS/TLS/network activation is authorized.
+# Running Caddy with a public hostname can obtain certificates and create CA
+# account/key material. This template is not started by any repository command.
+{
+    # Keep service/TLS logs, suppress HTTP request-context error/access logs.
+    log default {
+        exclude http.log.access http.log.error
+    }
+}
+
+REPLACE_HOSTNAME {
+    log {
+        output discard
+    }
+    reverse_proxy 127.0.0.1:4310 {
+        # Preserve the incoming Host and Origin for the app's exact checks.
+        # Never infer trust from caller-supplied forwarding headers.
+        header_up -Forwarded
+        header_up -X-Forwarded-For
+        header_up -X-Forwarded-Host
+        header_up X-Forwarded-Proto https
+        lb_retries 0
+        lb_try_duration 0
+        flush_interval -1
+        transport http {
+            dial_timeout 5s
+            response_header_timeout 40s
+            read_timeout 40s
+            write_timeout 40s
+        }
+    }
+}

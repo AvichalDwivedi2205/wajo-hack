@@ -1,0 +1,35 @@
+# Template only: place inside the approved host's nginx http {} context.
+# Replace the example hostname and certificate paths with authorized resources.
+# The Node process must share this proxy's network namespace and bind loopback.
+log_format fofix_safe '$request_method $uri $status';
+limit_req_zone $binary_remote_addr zone=fofix_general:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=fofix_login:1m rate=10r/m;
+
+server {
+    listen 443 ssl;
+    server_name fo-fix.example.invalid;
+    ssl_certificate /run/approved-tls/fullchain.pem;
+    ssl_certificate_key /run/approved-tls/privkey.pem;
+    client_max_body_size 512k;
+    access_log /var/log/nginx/fofix-access.log fofix_safe;
+
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header Forwarded "";
+    proxy_set_header X-Forwarded-For "";
+    proxy_set_header Authorization $http_authorization;
+    proxy_set_header Connection "";
+    proxy_buffering off;
+    proxy_read_timeout 40s;
+    proxy_send_timeout 40s;
+
+    location = /owner/auth/login {
+        limit_req zone=fofix_login burst=3 nodelay;
+        proxy_pass http://127.0.0.1:4310;
+    }
+    location / {
+        limit_req zone=fofix_general burst=20 nodelay;
+        proxy_pass http://127.0.0.1:4310;
+    }
+}

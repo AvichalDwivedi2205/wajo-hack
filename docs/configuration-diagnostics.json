@@ -1,0 +1,34 @@
+{
+  "configurationReady": true,
+  "issues": [],
+  "anthropic": {
+    "credentialPresent": false,
+    "requiredVariable": "ANTHROPIC_API_KEY",
+    "customEndpointPresent": false,
+    "tokenAlternativePresent": false,
+    "paidRequestMade": false
+  },
+  "proxy": {
+    "httpPresent": true,
+    "httpsPresent": true,
+    "bypassListPresent": true,
+    "nodeOptInPresent": true
+  },
+  "network": {
+    "checked": true,
+    "probes": [
+      {
+        "service": "anthropic",
+        "status": "denied_by_proxy",
+        "authenticated": false,
+        "paidRequestMade": false
+      },
+      {
+        "service": "wajo",
+        "status": "denied_by_proxy",
+        "authenticated": false,
+        "paidRequestMade": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "installation": "npm ci --omit=dev",
+  "runtimeLoaderPresent": true,
+  "viteAbsent": true,
+  "playwrightAbsent": true,
+  "authEndpoint": true,
+  "statusSource": "fixture",
+  "initialReadPermission": false,
+  "builtUIAvailable": true,
+  "gracefulExitCode": 0,
+  "remoteMissingIdentityExitCode": 2,
+  "remoteRefusedBeforeListen": true,
+  "explicitBearerProfile": {
+    "source": "synthetic fixture",
+    "configuredListener": "0.0.0.0",
+    "portFromHostPORT": 14315,
+    "hostAndHTTPSGuards": true,
+    "noOAuthConfiguration": true,
+    "anonymousRejected": true,
+    "mcpCannotSignInAsOwner": true,
+    "separateOwnerSessionWorks": true,
+    "usesExactProxyAllowlist": true
+  },
+  "explicitBearerGracefulExitCode": 0
+}

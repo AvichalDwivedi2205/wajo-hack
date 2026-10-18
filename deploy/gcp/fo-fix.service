@@ -1,0 +1,35 @@
+[Unit]
+Description=Fo Fix single-owner fixture MCP service
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/var/lib/fo-fix
+ConditionPathIsMountPoint=/var/lib/fo-fix
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=fofix
+Group=fofix
+WorkingDirectory=/opt/fo-fix
+EnvironmentFile=/etc/fo-fix/fo-fix.env
+Environment=PATH=/opt/node-v24.19.0/bin:/usr/local/bin:/usr/bin:/bin
+# Never create a fresh database on the boot disk when the data mount is absent.
+ExecStartPre=/usr/bin/mountpoint --quiet /var/lib/fo-fix
+ExecStart=/opt/node-v24.19.0/bin/node --use-env-proxy --import tsx src/server/main.ts --remote
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=45
+KillSignal=SIGTERM
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/fo-fix
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

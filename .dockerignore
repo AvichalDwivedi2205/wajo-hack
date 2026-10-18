@@ -1,0 +1,16 @@
+.git
+.fo-fix
+.agents
+.codex
+.aws
+node_modules
+dist
+test-results
+playwright-report
+docs/screenshots
+**/.env*
+**/*.sqlite*
+**/*.pem
+**/*.key
+**/*.p12
+companion/macos/.build
