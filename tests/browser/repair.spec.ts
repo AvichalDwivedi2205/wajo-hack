@@ -626,6 +626,122 @@ test("Fo can execute only after approval-only review, with delayed polling, relo
   }
 });
 
+test("captured pending polls cannot downgrade acknowledged Fo approval or reopen a declined plan", async ({
+  page,
+  baseURL,
+}) => {
+  const client = new Client({ name: "synthetic-stale-poll", version: "1" });
+  const captured: Array<{ release: () => void; delivered: Promise<void> }> = [];
+  const fresh: Array<() => void> = [];
+  let hold = false;
+  let browserExecutions = 0;
+  await page.route("**/api/status", async (route) => {
+    if (!hold) {
+      await route.fulfill({ response: await route.fetch() });
+      return;
+    }
+    if (captured.length < 2) {
+      // Capture the server's pending response BEFORE approval, then deliver it
+      // after the mutation acknowledgement. Holding before fetch is insufficient.
+      const response = await route.fetch();
+      const data = await response.json();
+      expect(
+        data.plans.some(
+          (plan: { status: string }) => plan.status === "pending",
+        ),
+      ).toBe(true);
+      let release!: () => void;
+      let delivered!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const done = new Promise<void>((resolve) => {
+        delivered = resolve;
+      });
+      captured.push({ release, delivered: done });
+      await gate;
+      await route.fulfill({ response, json: data });
+      delivered();
+      return;
+    }
+    await new Promise<void>((resolve) => fresh.push(resolve));
+    await route.fulfill({ response: await route.fetch() });
+  });
+  page.on("request", (request) => {
+    if (/\/api\/plans\/[^/]+\/execute$/.test(request.url()))
+      browserExecutions++;
+  });
+  const renderSettled = () =>
+    page.evaluate(async () => {
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+    });
+  try {
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(`${baseURL}/mcp`)),
+    );
+    await page.goto("/");
+    await page
+      .getByRole("button", { name: "Allow sound-output inspection" })
+      .click();
+    const inspected = (
+      await client.callTool({ name: "fo_fix_inspect_output", arguments: {} })
+    ).structuredContent as {
+      result: { outputId: string; devices: { id: string }[] };
+    };
+    const target = inspected.result.devices.find(
+      (device) => device.id !== inspected.result.outputId,
+    )!;
+    const proposal = (
+      await client.callTool({
+        name: "fo_fix_propose_repair",
+        arguments: { recipe: "switch-output", deviceId: target.id },
+      })
+    ).structuredContent as { result: { id: string } };
+    const dialog = page.getByRole("dialog");
+    await dialog
+      .getByRole("checkbox", { name: "I approve this specific change." })
+      .check();
+    hold = true;
+    await expect.poll(() => captured.length, { timeout: 10_000 }).toBe(2);
+    await dialog.getByRole("button", { name: "Approve for Fo" }).click();
+    await expect(
+      dialog.getByText("Approved. Waiting for Fo to execute this exact plan."),
+    ).toBeVisible();
+    captured[0].release();
+    await captured[0].delivered;
+    await renderSettled();
+    await expect(
+      dialog.getByText("Approved. Waiting for Fo to execute this exact plan."),
+    ).toBeVisible();
+    await expect(dialog.getByRole("checkbox")).toHaveCount(0);
+    await expect(
+      dialog.getByRole("button", { name: "Decline", exact: true }),
+    ).toBeEnabled();
+    await dialog.getByRole("button", { name: "Decline", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    captured[1].release();
+    await captured[1].delivered;
+    await renderSettled();
+    await expect(dialog).not.toBeVisible();
+    expect(
+      (
+        await client.callTool({
+          name: "fo_fix_execute_approved",
+          arguments: { planId: proposal.result.id },
+        })
+      ).isError,
+    ).toBe(true);
+    expect(browserExecutions).toBe(0);
+  } finally {
+    hold = false;
+    captured.forEach(({ release }) => release());
+    fresh.splice(0).forEach((release) => release());
+    await page.unrouteAll({ behavior: "wait" });
+    await client.close();
+  }
+});
+
 test("authenticated bearer owner sees exact UTC session and deployment deadlines with unknown account evidence", async ({
   page,
 }) => {

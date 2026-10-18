@@ -1,5 +1,7 @@
 # Verification evidence — 2026-10-18
 
+The latest [narrow recovery review](RECOVERY-REVIEW.md) starts at remote main `c8dbf2840957b982e2ccb66f017d299624d9d3e5`, excludes uncommitted demo extensions, and adds a captured stale-poll regression. Its separate [full output](recovery-check-output.txt) supersedes the counts below for the scoped recovery branch; historical deployment statements below describe their original passes.
+
 This report concerns the code built in `/workspace/wajo-hack` in a Linux cloud environment. **All successful repairs used synthetic fixtures. No actual personal-device repair, real Mac test, or live Fo registration has been demonstrated.**
 
 The latest [Clear cancellation review](CLEAR-CANCELLATION-REVIEW.md) records the offline helper reset fix, deterministic regressions, independent reviews and the direct-file policy limit. The preceding [Fo execution and credential handoff review](FO-FLOW-REVIEW.md) records approval-only execution and owner deadlines.
