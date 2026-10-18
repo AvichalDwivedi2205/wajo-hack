@@ -29,6 +29,8 @@ The app stores fixture state, proposals, action history, and activity in `.fo-fi
 
 ## Credentials and Fo-controlled execution
 
+The [narrow recovery review](docs/RECOVERY-REVIEW.md) records the reviewed source baseline, captured stale-poll regression and current cloud checks. File/form demo extensions are outside that review.
+
 Download the self-contained [offline credential helper](tools/offline-credentials.html) and follow the [user-controlled handoff](docs/CREDENTIAL-HANDOFF.md). It generates nothing until an explicit click, exports only digests, and creates no server endpoint or configuration. No real user credentials were generated during development.
 
 When Fo proposes a repair or undo, review it in the owner/local companion interface and choose **Approve for Fo**. That records approval without executing; Fo then executes the exact approved plan through MCP. The waiting state permits Decline and survives reload. **Approve & apply** remains the manual alternative. Remote bearer owners see their session and deployment deadlines in UTC. Account registration remains managed in Wajo; service status cannot prove it.
