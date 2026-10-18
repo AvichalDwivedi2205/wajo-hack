@@ -77,11 +77,22 @@ export async function inspectPdf(buffer: Buffer, nativeHelper?: string) {
 export async function pdfText(buffer: Buffer, nativeHelper?: string) {
   return (await inspectPdf(buffer, nativeHelper)).text;
 }
-export async function renderCloudPdf(
+export async function* renderPdfPages(
   buffer: Buffer,
-  write: (name: string, bytes: Uint8Array) => Promise<void>,
-  signal: AbortSignal,
+  nativeHelper?: string,
+  signal?: AbortSignal,
 ) {
+  invariant(
+    buffer.length <= 16 * 1024 * 1024 &&
+      buffer.subarray(0, 5).toString() === "%PDF-",
+    "REVIEW_PDF",
+    "Expected a bounded PDF document.",
+  );
+  invariant(
+    process.platform !== "darwin" || nativeHelper,
+    "REVIEW_NATIVE_REQUIRED",
+    "The fixed read-only PDF renderer is required on macOS.",
+  );
   const directory = await mkdtemp(
     join(await realpath(tmpdir()), "fo-review-render-"),
   );
@@ -89,10 +100,26 @@ export async function renderCloudPdf(
     const path = join(directory, "source.pdf");
     await writeFile(path, buffer, { flag: "wx", mode: 0o600 });
     for (const page of [1, 2, 3]) {
-      const result = await cloudPdf("render", path, String(page), signal);
-      await write(`page-${page}.png`, Buffer.from(result.stdout));
+      const result =
+        process.platform === "darwin"
+          ? await run(nativeHelper!, ["pdf-render", path, String(page)], {
+              timeout: 30_000,
+              maxBuffer: 8 * 1024 * 1024,
+              encoding: null,
+              signal,
+            })
+          : await cloudPdf("render", path, String(page), signal);
+      yield { page, bytes: Buffer.from(result.stdout) };
     }
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+}
+export async function renderCloudPdf(
+  buffer: Buffer,
+  write: (name: string, bytes: Uint8Array) => Promise<void>,
+  signal: AbortSignal,
+) {
+  for await (const { page, bytes } of renderPdfPages(buffer, undefined, signal))
+    await write(`page-${page}.png`, bytes);
 }

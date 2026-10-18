@@ -33,7 +33,7 @@ import {
   reviewJobSchema,
 } from "../src/review/contracts.ts";
 import { validatePng, rasterHasInk } from "../src/review/png.ts";
-import { inspectPdf } from "../src/review/pdf.ts";
+import { inspectPdf, renderCloudPdf } from "../src/review/pdf.ts";
 import type { ReviewJob, ReviewPlan } from "../src/review/contracts.ts";
 import { deflateSync, crc32 } from "node:zlib";
 import {
@@ -678,10 +678,17 @@ async function plannedPdf(
   for (const [i, slide] of plan.slides.entries()) {
     const page = pdf.addPage([960, 540]);
     const lines = [
+      ...(plan.snapshot.synthetic ? ["ALDER / CLIENT REVIEW"] : []),
       slide.kicker,
       ...(omitTitle && i === 1 ? [] : [slide.title]),
+      ...(plan.snapshot.synthetic && i === 1
+        ? ["APPROVED BEFORE PROPOSED / HYPOTHESIS"]
+        : []),
       ...slide.body,
       slide.footer,
+      ...(plan.snapshot.synthetic
+        ? ["SYNTHETIC HTML/PDF SIMULATION - NOT A NATIVE KEYNOTE EXPORT"]
+        : []),
       ...(sentinel ? ["FO_REVIEW_TITLE_1"] : []),
     ];
     lines.forEach((line, n) =>
@@ -690,7 +697,7 @@ async function plannedPdf(
   }
   return Buffer.from(await pdf.save());
 }
-test("output verification requires every approved fragment on its own page, no template sentinels and nonblank renders", async () => {
+test("output verification requires complete approved page text, no template sentinels and nonblank renders", async () => {
   const c = await reviewFixture();
   try {
     const { plan } = await prepared(c);
@@ -702,15 +709,21 @@ test("output verification requires every approved fragment on its own page, no t
       join(plan.destination, "review.pdf"),
       await plannedPdf(plan, true),
     );
-    await assert.rejects(checkOutput(c.root, name, plan), /required content/);
+    await assert.rejects(
+      checkOutput(c.root, name, plan),
+      /complete approved text/,
+    );
     await writeFile(
       join(plan.destination, "review.pdf"),
       await plannedPdf(plan, false, true),
     );
     await assert.rejects(checkOutput(c.root, name, plan), /template slots/);
-    await writeFile(
-      join(plan.destination, "review.pdf"),
-      await plannedPdf(plan),
+    const pdf = await plannedPdf(plan);
+    await writeFile(join(plan.destination, "review.pdf"), pdf);
+    await renderCloudPdf(
+      pdf,
+      (name, bytes) => writeFile(join(plan.destination, name), bytes),
+      new AbortController().signal,
     );
     await writeFile(
       join(plan.destination, "page-2.png"),
@@ -724,13 +737,17 @@ test("output verification requires every approved fragment on its own page, no t
 test("native receipt recovery always reads physical matching evidence even when cached (cloud adapter simulation only)", async () => {
   // Exercise the native receipt state machine with synthetic bytes and renderer.
   // This neither invokes Keynote nor provides any native acceptance evidence.
-  const renderer = new SyntheticReviewAdapter();
   const c = await reviewFixture({
     synthetic: false,
     execute: async (directory, plan, sources, signal, boundary) => {
-      await renderer.execute(directory, plan, sources, signal, boundary);
-      await unlink(join(directory, "review.html"));
-      await unlink(join(directory, "review.json"));
+      await boundary();
+      const pdf = await plannedPdf(plan);
+      await writeFile(join(directory, "review.pdf"), pdf);
+      await renderCloudPdf(
+        pdf,
+        (name, bytes) => writeFile(join(directory, name), bytes),
+        signal,
+      );
       await writeFile(
         join(directory, "review.key"),
         "synthetic test output; not a Keynote deck",

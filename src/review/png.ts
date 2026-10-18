@@ -116,13 +116,12 @@ export function validatePng(bytes: Buffer) {
     );
   return { width, height, channels, decoded };
 }
-export function rasterHasInk(bytes: Buffer) {
+export function pngPixels(bytes: Buffer) {
   const { width, height, channels, decoded } = validatePng(bytes),
     stride = width * channels;
+  const pixels = Buffer.alloc(width * height * 4);
   let previous = Buffer.alloc(stride),
-    row = Buffer.alloc(stride),
-    dark = 0,
-    light = 0;
+    row = Buffer.alloc(stride);
   const paeth = (a: number, b: number, c: number) => {
     const p = a + b - c,
       aa = Math.abs(p - a),
@@ -150,16 +149,34 @@ export function rasterHasInk(bytes: Buffer) {
       row[x] = (decoded[offset + 1 + x] + prediction) & 255;
     }
     for (let x = 0; x < stride; x += channels) {
-      const alpha = channels === 4 ? row[x + 3] / 255 : 1;
-      // Composite against the white export background; transparent RGB is not ink.
-      if ([0, 1, 2].every((c) => row[x + c] * alpha + 255 * (1 - alpha) < 180))
-        dark++;
-      if ([0, 1, 2].every((c) => row[x + c] * alpha + 255 * (1 - alpha) > 220))
-        light++;
+      const output = (y * width + x / channels) * 4;
+      for (let c = 0; c < 3; c++) pixels[output + c] = row[x + c];
+      pixels[output + 3] = channels === 4 ? row[x + 3] : 255;
     }
     const swap = previous;
     previous = row;
     row = swap;
+  }
+  return { width, height, pixels };
+}
+export function sameRaster(first: Buffer, second: Buffer) {
+  const a = pngPixels(first),
+    b = pngPixels(second);
+  return (
+    a.width === b.width && a.height === b.height && a.pixels.equals(b.pixels)
+  );
+}
+export function rasterHasInk(bytes: Buffer) {
+  const { width, height, pixels } = pngPixels(bytes);
+  let dark = 0,
+    light = 0;
+  for (let x = 0; x < pixels.length; x += 4) {
+    const alpha = pixels[x + 3] / 255;
+    // Composite against white; transparent RGB does not count as visible ink.
+    if ([0, 1, 2].every((c) => pixels[x + c] * alpha + 255 * (1 - alpha) < 180))
+      dark++;
+    if ([0, 1, 2].every((c) => pixels[x + c] * alpha + 255 * (1 - alpha) > 220))
+      light++;
   }
   const minimum = Math.max(
     1,

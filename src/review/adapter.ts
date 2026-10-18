@@ -2,15 +2,15 @@ import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 import { join } from "node:path";
 import { invariant } from "../core/errors.ts";
-import { renderCloudPdf, inspectPdf } from "./pdf.ts";
+import { renderCloudPdf, renderPdfPages, inspectPdf } from "./pdf.ts";
 import { OutputDirectory, type OutputBoundary } from "./output.ts";
 import { safeRead, sha256 } from "./files.ts";
-import { syntheticOutput } from "./render.ts";
-import { rasterHasInk } from "./png.ts";
+import { syntheticOutput, syntheticHtml, expectedPageText } from "./render.ts";
+import { rasterHasInk, sameRaster } from "./png.ts";
 import type { ReviewPlan } from "./contracts.ts";
 import { nativeEvidenceSchema, nativeIdentitySchema } from "./contracts.ts";
 import type { ReviewJob } from "./contracts.ts";
-import type { Sources } from "./manifest.ts";
+import { readSources, type Sources } from "./manifest.ts";
 
 const exec = promisify(execFile);
 export async function nativeReceipt(
@@ -154,6 +154,7 @@ export async function checkOutput(
     `${directoryName}/review.pdf`,
     16 * 1024 * 1024,
   );
+  const checkedArtifacts = [{ name: "review.pdf", sha256: sha256(pdf) }];
   const document = await inspectPdf(pdf, nativeHelper);
   invariant(
     document.pages === 3,
@@ -170,40 +171,73 @@ export async function checkOutput(
     "Expected exactly three text-bearing PDF pages.",
   );
   const normalize = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
-  for (let i = 0; i < 3; i++)
-    for (const marker of [
-      plan.slides[i].kicker,
-      plan.slides[i].title,
-      ...plan.slides[i].body,
-      plan.slides[i].footer,
-    ])
-      invariant(
-        normalize(pages[i]).includes(normalize(marker)),
-        "REVIEW_VERIFY",
-        "A PDF page is missing its own required content or evidence footer.",
-      );
   invariant(
     !/FO_REVIEW_/i.test(document.text),
     "REVIEW_VERIFY",
     "Unreplaced native template slots remain in the export.",
   );
-  for (let page = 1; page <= 3; page++) {
+  for (let i = 0; i < 3; i++)
+    invariant(
+      normalize(pages[i]) === normalize(expectedPageText(plan, i)),
+      "REVIEW_VERIFY",
+      `Exported page ${i + 1} does not match the complete approved text. Preserve the output; inspect the preview and prepare a fresh plan.`,
+    );
+  // Re-render the same immutable PDF bytes inspected above. Never treat
+  // adapter-supplied PNGs as evidence of which PDF pages were actually rendered.
+  for await (const { page, bytes } of renderPdfPages(pdf, nativeHelper)) {
     const png = await safeRead(
       root,
       `${directoryName}/page-${page}.png`,
       8 * 1024 * 1024,
     );
+    checkedArtifacts.push({ name: `page-${page}.png`, sha256: sha256(png) });
     invariant(
       rasterHasInk(png),
       "REVIEW_RENDER",
       "Every PDF page needs a bounded nonblank independently rendered PNG.",
     );
+    invariant(
+      sameRaster(png, bytes),
+      "REVIEW_RENDER",
+      `Stored page-${page}.png does not match PDF page ${page}. Preserve the output and verify its rendering locally; no automatic retry was made.`,
+    );
+  }
+  if (plan.snapshot.synthetic) {
+    const sources = await readSources(root);
+    invariant(
+      JSON.stringify(
+        sources.manifest.files.map((file) => ({
+          id: file.id,
+          path: file.path,
+          sha256: file.sha256,
+          revision: file.revision,
+          selected: sources.selected.get(file.role)?.id === file.id,
+        })),
+      ) === JSON.stringify(plan.snapshot.sources),
+      "REVIEW_STALE",
+      "The approved sources changed. Prepare and approve a fresh plan.",
+    );
+    for (const [name, expected, limit] of [
+      ["review.html", syntheticHtml(plan, sources), 16 * 1024 * 1024],
+      ["review.json", JSON.stringify(plan.slides, null, 2) + "\n", 64 * 1024],
+    ] as const) {
+      const bytes = await safeRead(root, `${directoryName}/${name}`, limit);
+      invariant(
+        bytes.equals(Buffer.from(expected, "utf8")),
+        "REVIEW_VERIFY",
+        `The editable ${name} does not match the approved synthetic preview. Preserve the output and prepare a fresh plan.`,
+      );
+      checkedArtifacts.push({ name, sha256: sha256(bytes) });
+    }
   }
   return {
-    pages: 3,
-    textChecked: true,
-    originalsUnchanged: true,
-    renderedPages: 3,
-    visualApproved: false,
+    verification: {
+      pages: 3,
+      textChecked: true,
+      originalsUnchanged: true,
+      renderedPages: 3,
+      visualApproved: false,
+    },
+    checkedArtifacts,
   };
 }

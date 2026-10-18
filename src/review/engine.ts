@@ -487,7 +487,7 @@ export class ReviewEngine implements ReviewAgent {
               "REVIEW_INTERRUPTED",
               "The bounded job deadline ended.",
             );
-            const verification = await checkOutput(
+            const { verification, checkedArtifacts } = await checkOutput(
               this.root,
               localName(this.root, p.destination),
               p,
@@ -503,6 +503,7 @@ export class ReviewEngine implements ReviewAgent {
                   nativeEvidence || undefined,
                 );
             const artifacts = await this.inventory(p.destination);
+            this.checkedArtifactsMatch(checkedArtifacts, artifacts);
             invariant(
               artifacts.some(
                 (a) =>
@@ -579,6 +580,21 @@ export class ReviewEngine implements ReviewAgent {
     }
     return items;
   }
+  private checkedArtifactsMatch(
+    checked: { name: string; sha256: string }[],
+    artifacts: ReviewJob["artifacts"],
+  ) {
+    invariant(
+      checked.every((proof) =>
+        artifacts.some(
+          (artifact) =>
+            artifact.name === proof.name && artifact.sha256 === proof.sha256,
+        ),
+      ),
+      "REVIEW_ARTIFACT_CHANGED",
+      "Generated artifacts changed after verification. Preserve the output; inspect it locally before preparing a fresh plan. No automatic retry was made.",
+    );
+  }
   private async inventoryMatches(job: ReviewJob, destination: string) {
     const now = await this.inventory(destination);
     invariant(
@@ -597,59 +613,75 @@ export class ReviewEngine implements ReviewAgent {
       plan = this.plan(job.planId);
     if (this.workers.has(job.id)) return structuredClone(job);
     if (job.state === "succeeded" || job.state === "uncertain") {
-      await this.fresh(plan.snapshot);
-      if (job.artifacts.length)
-        await this.inventoryMatches(job, plan.destination);
-      const verification = await checkOutput(
-        this.root,
-        localName(this.root, plan.destination),
-        plan,
-        this.nativeHelper,
-      );
-      const receipt = this.adapter.synthetic
-        ? undefined
-        : await nativeReceipt(
-            this.root,
-            localName(this.root, plan.destination),
-            plan,
-            job.nativeEvidence,
-          );
-      invariant(
-        this.adapter.synthetic || receipt,
-        "REVIEW_RECIPE",
-        "The native recipe receipt must be checked before promotion.",
-      );
-      const artifacts = await this.inventory(plan.destination);
-      invariant(
-        artifacts.some(
-          (a) =>
-            a.name === (this.adapter.synthetic ? "review.html" : "review.key"),
-        ),
-        "REVIEW_ARTIFACT",
-        "The editable output is missing.",
-      );
-      invariant(
-        this.adapter.synthetic ||
+      try {
+        await this.fresh(plan.snapshot);
+        if (job.artifacts.length)
+          await this.inventoryMatches(job, plan.destination);
+        const { verification, checkedArtifacts } = await checkOutput(
+          this.root,
+          localName(this.root, plan.destination),
+          plan,
+          this.nativeHelper,
+        );
+        const receipt = this.adapter.synthetic
+          ? undefined
+          : await nativeReceipt(
+              this.root,
+              localName(this.root, plan.destination),
+              plan,
+              job.nativeEvidence,
+            );
+        invariant(
+          this.adapter.synthetic || receipt,
+          "REVIEW_RECIPE",
+          "The native recipe receipt must be checked before promotion.",
+        );
+        const artifacts = await this.inventory(plan.destination);
+        this.checkedArtifactsMatch(checkedArtifacts, artifacts);
+        invariant(
           artifacts.some(
-            (a) => a.name === "receipt.json" && a.sha256 === receipt?.sha256,
+            (a) =>
+              a.name ===
+              (this.adapter.synthetic ? "review.html" : "review.key"),
           ),
-        "REVIEW_RECIPE",
-        "Native verification requires a physical receipt in the inventory.",
-      );
-      await this.fresh(plan.snapshot);
-      invariant(
-        this.allowed().epoch === epoch,
-        "REVIEW_REVOKED",
-        "File access changed during output verification.",
-      );
-      job.artifacts = artifacts;
-      if (receipt) job.nativeEvidence = receipt.evidence;
-      job.state = "succeeded";
-      job.verification = {
-        ...verification,
-        visualApproved: job.verification?.visualApproved ?? false,
-      };
-      this.store.save();
+          "REVIEW_ARTIFACT",
+          "The editable output is missing.",
+        );
+        invariant(
+          this.adapter.synthetic ||
+            artifacts.some(
+              (a) => a.name === "receipt.json" && a.sha256 === receipt?.sha256,
+            ),
+          "REVIEW_RECIPE",
+          "Native verification requires a physical receipt in the inventory.",
+        );
+        await this.fresh(plan.snapshot);
+        invariant(
+          this.allowed().epoch === epoch,
+          "REVIEW_REVOKED",
+          "File access changed during output verification.",
+        );
+        job.artifacts = artifacts;
+        if (receipt) job.nativeEvidence = receipt.evidence;
+        job.state = "succeeded";
+        job.message = this.adapter.synthetic
+          ? "Synthetic HTML/PDF simulation verified. This is not a Keynote or hardware result."
+          : "Native output contents and page renders checked. Actual visual sign-off and readiness runs are still required.";
+        job.verification = {
+          ...verification,
+          visualApproved: job.verification?.visualApproved ?? false,
+        };
+        this.store.save();
+      } catch (error) {
+        job.state = "uncertain";
+        delete job.verification;
+        job.message =
+          error instanceof FixError
+            ? error.message
+            : "Output verification failed. Preserve the artifacts and inspect them locally; no automatic retry was made.";
+        this.store.save();
+        throw error;
+      }
     }
     invariant(
       this.allowed().epoch === epoch,

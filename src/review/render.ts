@@ -42,6 +42,28 @@ export function slidesFor(snapshot: import("./contracts.ts").ReviewSnapshot) {
 }
 const escape = (s: string) =>
   s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll('"', "&quot;");
+export const syntheticBrand = "ALDER / CLIENT REVIEW";
+export const syntheticDisclosure =
+  "SYNTHETIC HTML/PDF SIMULATION - NOT A NATIVE KEYNOTE EXPORT";
+export const comparisonLabels = [
+  "APPROVED BEFORE",
+  "PROPOSED / HYPOTHESIS",
+] as const;
+
+// The fixed template's complete text reading order. Raster screenshots are
+// separate source images; they add no PDF text objects to this contract.
+export function expectedPageText(plan: ReviewPlan, index: number) {
+  const slide = plan.slides[index];
+  return [
+    ...(plan.snapshot.synthetic ? [syntheticBrand] : []),
+    slide.kicker,
+    slide.title,
+    ...(plan.snapshot.synthetic && index === 1 ? comparisonLabels : []),
+    ...slide.body,
+    slide.footer,
+    ...(plan.snapshot.synthetic ? [syntheticDisclosure] : []),
+  ].join(" ");
+}
 export async function syntheticOutput(
   plan: ReviewPlan,
   sources: Sources,
@@ -63,7 +85,7 @@ export async function syntheticOutput(
       height: 540,
       color: rgb(0.97, 0.95, 0.89),
     });
-    page.drawText("ALDER / CLIENT REVIEW", {
+    page.drawText(syntheticBrand, {
       x: 48,
       y: 500,
       size: 12,
@@ -94,14 +116,14 @@ export async function syntheticOutput(
           height: 280,
         });
       }
-      page.drawText("APPROVED BEFORE", {
+      page.drawText(comparisonLabels[0], {
         x: 48,
         y: 87,
         size: 11,
         font: bold,
         color: rgb(0.55, 0.39, 0.12),
       });
-      page.drawText("PROPOSED / HYPOTHESIS", {
+      page.drawText(comparisonLabels[1], {
         x: 488,
         y: 87,
         size: 11,
@@ -134,15 +156,28 @@ export async function syntheticOutput(
       font: regular,
       color: rgb(0.33, 0.4, 0.36),
     });
-    page.drawText(
-      "SYNTHETIC HTML/PDF SIMULATION - NOT A NATIVE KEYNOTE EXPORT",
-      { x: 48, y: 12, size: 8, font: bold, color: rgb(0.55, 0.39, 0.12) },
-    );
+    page.drawText(syntheticDisclosure, {
+      x: 48,
+      y: 12,
+      size: 8,
+      font: bold,
+      color: rgb(0.55, 0.39, 0.12),
+    });
   }
   const pdf = Buffer.from(await doc.save());
   await write("review.pdf", pdf);
-  const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'"><title>Alder - synthetic review</title><style>body{background:#183e32;margin:0;font-family:system-ui;color:#183e32}section{background:#f6f0e2;aspect-ratio:16/9;padding:5%;margin:40px auto;max-width:1200px;box-sizing:border-box}h1{font:46px Georgia}p{font-size:22px}small{color:#775b2b}img{width:47%;margin-right:2%}footer{font-size:12px}</style>${plan.slides.map((s, i) => `<section><small>ALDER / SYNTHETIC PREVIEW / ${escape(s.kicker)}</small><h1>${escape(s.title)}</h1>${i === 1 ? images.map((b) => `<img alt="Synthetic checkout comparison" src="data:image/png;base64,${b.toString("base64")}">`).join("") : ""}${s.body.map((p) => `<p>${escape(p)}</p>`).join("")}<footer>${escape(s.footer)} / HTML/PDF fallback; not a Keynote deck</footer></section>`).join("")}</html>`;
+  const html = syntheticHtml(plan, sources);
   await write("review.html", html);
   await write("review.json", JSON.stringify(plan.slides, null, 2) + "\n");
   return pdf;
+}
+
+export function syntheticHtml(plan: ReviewPlan, sources: Sources) {
+  const images = ["before", "proposed"].map(
+    (role) =>
+      sources.bytes.get(
+        sources.selected.get(role as "before" | "proposed")!.id,
+      )!,
+  );
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'"><title>Alder - synthetic review</title><style>body{background:#183e32;margin:0;font-family:system-ui;color:#183e32}section{background:#f6f0e2;aspect-ratio:16/9;padding:5%;margin:40px auto;max-width:1200px;box-sizing:border-box}h1{font:46px Georgia}p{font-size:22px}small{color:#775b2b}img{width:47%;margin-right:2%}footer{font-size:12px}</style>${plan.slides.map((s, i) => `<section><small>ALDER / SYNTHETIC PREVIEW / ${escape(s.kicker)}</small><h1>${escape(s.title)}</h1>${i === 1 ? images.map((b) => `<img alt="Synthetic checkout comparison" src="data:image/png;base64,${b.toString("base64")}">`).join("") : ""}${s.body.map((p) => `<p>${escape(p)}</p>`).join("")}<footer>${escape(s.footer)} / HTML/PDF fallback; not a Keynote deck</footer></section>`).join("")}</html>`;
 }

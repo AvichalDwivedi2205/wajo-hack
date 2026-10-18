@@ -1,0 +1,65 @@
+{
+  "scope": "Independent read-only cloud security review of the acceptance repair; no native execution or real credentials.",
+  "startingCommit": "d9093a908b8bf05dda48c0a9cd58010c60a707ea",
+  "sourceSha256": {
+    "src/review/adapter.ts": "2fc1bbed84fd3b004c5d8e98c0f0427245ded84487abaee0ab3cdcc0d8e616f9",
+    "src/review/engine.ts": "1bed03f180bf7aa9ea9467162b45175e25df70b180b6e9fc66546c908c336d8e",
+    "src/review/evidence.ts": "686d914f7efdd4fcb9b6f965f9a10e9246fac64c037df881633f5133bd49e1ec",
+    "src/review/pdf.ts": "66b3b4d9011ea08ae59f1df7155de983b95f2be5c13b7ebccefc90dc86ac70e7",
+    "src/review/png.ts": "16704140381d8820e54ef85fec5d0679886f6cce2616a3fcfca614efaef39a50",
+    "src/review/render.ts": "140cc715ed2fe30ef856d795361c8544396fe68a05a11439883da52e01457b3c",
+    "companion/macos/ReviewHelper.m": "a657ecadd334afe6629555edb6469d98bc6efe1e8b54df6adbf9e7d7a73edeb8"
+  },
+  "totalPassed": 12,
+  "totalFailed": 0,
+  "probes": [
+    {
+      "name": "create rejects review.pdf changed after checkOutput before inventory",
+      "passed": true
+    },
+    {
+      "name": "create rejects page-2.png changed after checkOutput before inventory",
+      "passed": true
+    },
+    {
+      "name": "create rejects review.html changed after checkOutput before inventory",
+      "passed": true
+    },
+    {
+      "name": "create rejects review.json changed after checkOutput before inventory",
+      "passed": true
+    },
+    {
+      "name": "create rejects contradictory review.html emitted by adapter",
+      "passed": true
+    },
+    {
+      "name": "create rejects contradictory review.json emitted by adapter",
+      "passed": true
+    },
+    {
+      "name": "unchanged output succeeds and collects exact six artifact proofs",
+      "passed": true
+    },
+    {
+      "name": "explicit verify rejects postcheck review.pdf mutation, clears success, and restores only by explicit verify",
+      "passed": true
+    },
+    {
+      "name": "explicit verify rejects postcheck page-2.png mutation, clears success, and restores only by explicit verify",
+      "passed": true
+    },
+    {
+      "name": "explicit verify rejects postcheck review.html mutation, clears success, and restores only by explicit verify",
+      "passed": true
+    },
+    {
+      "name": "explicit verify rejects postcheck review.json mutation, clears success, and restores only by explicit verify",
+      "passed": true
+    },
+    {
+      "name": "direct altered source projection fails sidecar source binding",
+      "passed": true
+    }
+  ]
+}

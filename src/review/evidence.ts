@@ -216,8 +216,9 @@ export async function analyze(
       "Duplicate, unmatched or inconsistent refund rows are rejected.",
     );
     required(
-      Number(r[5]) <= paid!.amount &&
-        (r[7] !== "full" || Number(r[5]) === paid!.amount),
+      r[7] === "full"
+        ? Number(r[5]) === paid!.amount
+        : Number(r[5]) < paid!.amount,
       "Refund amount does not match its full/partial classification.",
     );
     refundIds.add(r[0]);

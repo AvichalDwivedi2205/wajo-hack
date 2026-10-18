@@ -1,0 +1,250 @@
+
+> fo-fix@0.1.0 check
+> npm run build && npm test && npm run test:e2e
+
+
+> fo-fix@0.1.0 build
+> tsc --noEmit && vite build
+
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 1730 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.66 kB │ gzip:  0.40 kB
+dist/assets/index-DGM2JxTa.css   34.02 kB │ gzip:  7.73 kB
+dist/assets/index-Dwe2dwdd.js   274.65 kB │ gzip: 84.58 kB
+
+✓ built in 158ms
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+
+> fo-fix@0.1.0 test
+> tsx --test tests/*.test.ts
+
+✔ human permission endpoint requires exact local Origin; foreign Host and Origin rejected (66.373683ms)
+✔ API validates strict schema and rejects arbitrary commands (20.536706ms)
+✔ oversized requests are rejected without echoing input or taking down the companion (9.991802ms)
+✔ HTTP approval cannot be spoofed through execute arguments or missing local review Origin (29.030395ms)
+✔ real MCP SDK client lists bounded tools; no grant, approve, terminal or security tools exist (65.817907ms)
+✔ MCP proposal cannot execute until human review; verification and history are shared (45.785662ms)
+✔ stdio bridge speaks MCP and shares the running companion rather than creating independent approvals (408.793545ms)
+✔ deployment deadline is returned only to the authenticated owner and bounds the session (60.784756ms)
+✔ explicit bearer configuration needs no OAuth provider and rejects shared credentials, unbounded proxy trust and missing or excessive expiry (0.820527ms)
+✔ Fo-style explicit bearer MCP cannot sign in or approve; separate owner cookie plus CSRF enables verified fixture repair and separately approved undo (121.96012ms)
+✔ bearer access fails closed for query credentials, foreign origins, owner-session expiry, deployment expiry and rate-limited login guesses (25.011286ms)
+✔ exact trusted proxy allowlist rejects nonproxy peers and spoofed forwarding headers while preserving Host and Origin checks (9.610201ms)
+✔ a separate companion bearer authenticates only device relay; even cloud owner sessions cannot grant or approve device operations (11.870774ms)
+✔ remote mode fails closed without complete identity, HTTPS and isolated-client configuration (2.689055ms)
+✔ diagnostics disclose presence and fixed issue messages without values or model calls (0.76856ms)
+✔ the real remote entry point refuses missing identity before creating a journal or listener (701.686368ms)
+✔ optional network diagnostics use fixed unauthenticated HEAD probes and sanitize proxy failures (32.91714ms)
+✔ offline helper is self-contained, CSP-pinned and denies network/form submission (1.114429ms)
+✔ offline helper has no network/storage/telemetry APIs or implicit generation handler (0.27858ms)
+✔ oauth: authenticated remote MCP relay preserves local inspection consent, exact approval, verification and separately approved undo (390.990448ms)
+✔ bearer: authenticated remote MCP relay preserves local inspection consent, exact approval, verification and separately approved undo (173.791566ms)
+✔ session delivery is single-use, duplicate results are idempotent and expired sessions cannot reconnect automatically (1.360751ms)
+✔ a delivered execution timeout is uncertain and is never redelivered (25.802199ms)
+✔ malformed companion results settle the original request instead of orphaning it (1.015833ms)
+✔ bridge does not start a delivered approved execution after deadline during its long poll (12.908591ms)
+✔ bridge does not start a delivered approved execution after cancellation during its long poll (13.578585ms)
+✔ device bridge rejects owner/terminal commands supplied by a gateway before calling the local MCP client (14.195202ms)
+✔ agent history stays bounded as the full local journal grows (140.791765ms)
+✔ inspection and proposals require a temporary permission lease (0.885622ms)
+✔ fixture repair verifies a fresh read and undo restores the original state with separate approval (2.918481ms)
+✔ execution without approval and after denial cannot change state (1.351077ms)
+✔ approval is bound to exact digest and expires (0.549387ms)
+✔ approved plans also expire before execution (0.674572ms)
+✔ revocation invalidates approvals and blocks future reads (0.887635ms)
+✔ lease expiry blocks writes despite earlier approval (0.607182ms)
+✔ revocation while native pre-write inspection is in flight prevents the write (1.091274ms)
+✔ revocation while native inspection is in flight prevents returning state (0.912862ms)
+✔ device drift before approval and after approval fails closed (1.306481ms)
+✔ concurrent replay executes at most once (1.402563ms)
+✔ undo refuses to overwrite a newer external setting (1.014712ms)
+✔ verification failure is reported and no automatic retry occurs (1.050034ms)
+✔ adapter error after partial write stays uncertain, journaled, and non-replayable (0.902968ms)
+✔ unmute is scoped to active output and undo restores its prior mute state (1.275806ms)
+✔ unsupported or unavailable controls do not produce a plan (0.486175ms)
+✔ history persists; interrupted writes become uncertain; access and approvals do not survive restart (2.393329ms)
+✔ two companion processes cannot keep separate mutable copies of one journal (1005.031812ms)
+✔ declining an approved plan interrupts its pre-write read instead of waiting behind execution (1.253173ms)
+✔ declining a plan interrupts an in-flight approval check (0.773818ms)
+✔ revoking and regranting permission cannot revive an old in-flight read or proposal (0.979711ms)
+✔ approval and execution deadlines are checked again after asynchronous inspection (1.024386ms)
+✔ every write retires other approvals so identical later state cannot revive them (4.968125ms)
+✔ replacing an inspection lease invalidates pending and approved plans (0.667722ms)
+✔ shutdown cancels a pre-write read and refuses new permission grants (0.618109ms)
+✔ shutdown waits for an already-started write to verify and journal its result (2.724015ms)
+✔ state revision is independent of device and object-property ordering (0.378056ms)
+✔ agent history is withheld after revocation while the local human journal remains available (1.199804ms)
+✔ SIGTERM gracefully persists revocation, invalidates pending plans and releases the real server journal (651.979608ms)
+✔ oversized MCP evidence returns a bounded error without losing subsequent status or local evidence (38.478298ms)
+✔ native wire contract preserves mute capability: undefined (1.932822ms)
+✔ native wire contract preserves mute capability: null (0.19044ms)
+✔ native wire contract preserves mute capability: false (0.10887ms)
+✔ native wire contract preserves mute capability: true (0.094048ms)
+✔ native wire contract rejects ambiguous mute values and unrecognized fields (0.871241ms)
+✔ missing native mute capability remains inspectable but cannot authorize a mute repair (2.513946ms)
+✔ remote MCP validates signed access tokens, audience, client, subject, scope, type and expiry (19.052874ms)
+✔ remote startup rejects anonymous MCP and owner API; protected-resource discovery remains public (27.951029ms)
+✔ owner PKCE session and CSRF protect grants and approvals; MCP bearer cannot become owner (90.425368ms)
+✔ login callback state is cookie-bound, single-use and cannot exchange an MCP token for an owner session (11.555031ms)
+✔ owner sessions expire and owner/companion tokens are rejected by MCP (10.790215ms)
+✔ remote JWKS verification reads only the pinned HTTPS key endpoint with bounded responses and no redirect following (2.753669ms)
+✔ reject settled partial refund of 10000 against a 10000 payment without losing the 120 full refunds (964.92106ms)
+✔ reject settled partial refund of 10001 against a 10000 payment without losing the 120 full refunds (735.458588ms)
+✔ reject pending partial refund of 10000 against a 10000 payment without losing the 120 full refunds (703.416178ms)
+✔ reject pending partial refund of 10001 against a 10000 payment without losing the 120 full refunds (746.524875ms)
+✔ genuine partial and pending full refunds remain excluded from the 120 settled full refunds (873.648572ms)
+✔ extra contradictory PDF text fails despite correct approved fragments and genuine page renders: 9.9% retained conversion. LAUNCH NOW. (2112.598762ms)
+✔ extra contradictory PDF text fails despite correct approved fragments and genuine page renders: The existing retained gate is 1.0%. (2155.726267ms)
+✔ extra contradictory PDF text fails despite correct approved fragments and genuine page renders: Measured checkout uplift: 100%. (2273.370362ms)
+✔ nonblank duplicates page PNGs fail against independent rendering of the actual PDF (2727.557541ms)
+✔ nonblank swapped page PNGs fail against independent rendering of the actual PDF (2612.031305ms)
+✔ valid output remains verified with pixel-identical PNGs encoded differently (4043.688691ms)
+✔ contradictory editable review.html cannot inherit a valid PDF verification (3101.250425ms)
+✔ contradictory editable review.json cannot inherit a valid PDF verification (2995.807947ms)
+✔ create refuses review.pdf replacement between verification and inventory (2474.254724ms)
+✔ create refuses page-2.png replacement between verification and inventory (2383.170356ms)
+✔ create refuses review.html replacement between verification and inventory (2452.736152ms)
+✔ create refuses review.json replacement between verification and inventory (2506.148556ms)
+✔ recovery refuses review.pdf replacement between verification and inventory (2396.363239ms)
+✔ recovery refuses page-2.png replacement between verification and inventory (2288.680379ms)
+✔ recovery refuses review.html replacement between verification and inventory (2242.835701ms)
+✔ recovery refuses review.json replacement between verification and inventory (2280.80735ms)
+✔ failed re-verification clears a previously successful result while preserving the recorded inventory (2079.772029ms)
+✔ two current revisions fails before an executable plan (18.737622ms)
+✔ superseded selection fails before an executable plan (13.976442ms)
+✔ inconsistent refund total fails before an executable plan (812.086463ms)
+✔ hardlinked source fails before an executable plan (10.456135ms)
+✔ a legitimately rehashed source and manifest still invalidate an acknowledged older approval (874.725268ms)
+✔ concurrent approval, execution and undo requests consume each exact approval once (2945.451049ms)
+✔ malicious instructions in approved notes cannot change the fixed measure, output, scope or authorization (2094.675026ms)
+✔ disk-backed SIGKILL during partial export restarts uncertain without a lease, replay or serving partial bytes (1327.644943ms)
+✔ three synthetic SDK/gateway/companion review runs preserve local authority and an export lasting beyond the 25-second audio timeout (37250.156958ms)
+✔ relay review allowlist and metadata schemas reject arbitrary commands, extra fields and document payloads (0.854877ms)
+✔ review scope is separate from audio; explicit revisions beat timestamps and yield exact ID-proven retained conversion (1021.117763ms)
+✔ reject duplicate visitor IDs (804.611908ms)
+✔ reject missing visitor IDs (766.210058ms)
+✔ reject two paid transactions for one visitor (825.250893ms)
+✔ reject duplicate transaction IDs (789.708412ms)
+✔ reject unmatched paid visitor (804.587608ms)
+✔ reject impossible calendar date (777.49288ms)
+✔ reject paid after cutoff (748.592054ms)
+✔ reject wrong paid cohort (813.50401ms)
+✔ reject duplicate refund (779.964468ms)
+✔ reject unmatched refund (741.503214ms)
+✔ reject mismatched refund cohort (740.553032ms)
+✔ reject mismatched refund cutoff (771.338632ms)
+✔ reject incorrect full refund amount (767.853209ms)
+✔ reject cached formula <f>1+1</f> (363.752022ms)
+✔ reject cached formula <f/> (357.132703ms)
+✔ reject cached formula <odd-prefix:f xmlns:od (361.688377ms)
+✔ reject unsupported xl/vbaProject.bin (67.752824ms)
+✔ reject unsupported xl/externalLinks/externalLink1.xml (75.645509ms)
+✔ reject forged ZIP expansion even when local and central declared lengths agree (93.681669ms)
+✔ reject conflicting rules PDF fields (932.729011ms)
+✔ reject conflicting brief PDF fields (846.600262ms)
+✔ reject symlink source, traversal manifest, and oversized PNG before decoding (51.770594ms)
+✔ bounded regular reads reject oversize before allocation (9.834781ms)
+✔ approval-only, async output verification, preserved originals and separately approved safe undo (4438.8804ms)
+✔ commit refuses source approval (910.835905ms)
+✔ commit refuses expired approval (880.020658ms)
+✔ commit refuses denied approval (950.500995ms)
+✔ commit refuses revoked approval (874.232072ms)
+✔ revoke wins over delayed grant and denial wins over delayed create approval (932.775661ms)
+✔ deny/revoke win over deferred undo inventory checks (2210.642751ms)
+✔ PNG validator rejects high-bit chunk aliases, animations and concatenated compressed streams (1.402022ms)
+✔ timed-out native-style work keeps exclusive worker and drains before shutdown; restart never replays (1924.240644ms)
+✔ undo refuses modified or unrelated artifacts and native mode never silently falls back (2504.844676ms)
+✔ render verification rejects tiny, transparent and flat pages while allowing visible slide contrast (183.372492ms)
+✔ PDF page metadata cannot spoof the independent page count or exceed the input page cap (89.35676ms)
+✔ output verification requires complete approved page text, no template sentinels and nonblank renders (3276.852316ms)
+✔ native receipt recovery always reads physical matching evidence even when cached (cloud adapter simulation only) (4525.3267ms)
+✔ parallel preview reads have a bounded queue and wrong snapshot digests never return source bytes (1127.926179ms)
+✔ explicit cloud setup stages only synthetic source files under app data, reuses exact sources and never overwrites changed data (96.055093ms)
+✔ an ancestor changed to a symlink at adapter entry cannot redirect generated bytes outside the approved output scope (898.876447ms)
+✔ shutdown waits for a consumed undo to finish journaling before the store may close (2308.267374ms)
+✔ qualifying refund evidence identifies the actual rows when a valid pending refund is excluded (842.251641ms)
+ℹ tests 145
+ℹ suites 0
+ℹ pass 145
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58089.754574
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+
+> fo-fix@0.1.0 test:e2e
+> playwright test
+
+[WebServer] (node:30230) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:30243) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] npm notice
+[WebServer] npm notice New major version of npm available! 11.9.0 -> 12.2.0
+[WebServer] npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+[WebServer] npm notice To update run: npm install -g npm@12.2.0
+[WebServer] npm notice
+[WebServer] (node:30254) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:30267) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] Fo Fix: http://127.0.0.1:4318 · SYNTHETIC FIXTURE — no real device attached · local mode · MCP /mcp
+
+Running 27 tests using 1 worker
+
+(node:30275) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/browser/offline-credentials.spec.ts:139:3 › Clear cancels generation while hash 1 is pending and discards its late result (415ms)
+  ✓   2 tests/browser/offline-credentials.spec.ts:139:3 › Clear cancels generation while hash 2 is pending and discards its late result (338ms)
+  ✓   3 tests/browser/offline-credentials.spec.ts:174:3 › cancelled hash success cannot alter a newer pending generation (434ms)
+  ✓   4 tests/browser/offline-credentials.spec.ts:174:3 › cancelled hash failure cannot alter a newer pending generation (421ms)
+  ✓   5 tests/browser/offline-credentials.spec.ts:231:1 › a current hash failure clears pending state and permits an explicit retry (381ms)
+  -   6 tests/browser/offline-credentials.spec.ts:262:1 › downloaded standalone HTML works directly with synthetic bytes where file navigation is supported
+  ✓   7 tests/browser/offline-credentials.spec.ts:330:1 › offline click-only generation hashes exact synthetic strings, masks values and exports only digests without network/storage (490ms)
+  ✓   8 tests/browser/offline-credentials.spec.ts:413:1 › helper fails closed on entropy failure and discards generation finishing after pagehide (334ms)
+(node:30646) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   9 tests/browser/repair.spec.ts:14:1 › fixture repair, reload-persisted history, separately approved undo, denial, and revocation (1.9s)
+  ✓  10 tests/browser/repair.spec.ts:92:1 › mobile layout has no horizontal overflow and integration is candid (452ms)
+  ✓  11 tests/browser/repair.spec.ts:123:1 › all main screens pass automated WCAG A/AA checks; review dialog traps keyboard focus (3.9s)
+  ✓  12 tests/browser/repair.spec.ts:175:1 › an MCP execution updates the open browser even when the browser lost its execute response (2.8s)
+  ✓  13 tests/browser/repair.spec.ts:238:1 › remote owner sign-in has no credential input and begins only the configured HTTPS authorization navigation (466ms)
+  ✓  14 tests/browser/repair.spec.ts:268:1 › cloud device-session interface never offers device permission grants or approval controls (465ms)
+  ✓  15 tests/browser/repair.spec.ts:313:1 › bearer profile uses a separate masked owner form and keeps the credential out of browser storage (534ms)
+  ✓  16 tests/browser/repair.spec.ts:363:3 › bearer: an existing owner session can sign out and sign in again without reloading (449ms)
+  ✓  17 tests/browser/repair.spec.ts:363:3 › oauth: an existing owner session can sign out and sign in again without reloading (447ms)
+  ✓  18 tests/browser/repair.spec.ts:397:3 › redacted history preserves the recorded count and never claims an empty journal (457ms)
+  ✓  19 tests/browser/repair.spec.ts:397:3 › truncated history preserves the recorded count and never claims an empty journal (469ms)
+  ✓  20 tests/browser/repair.spec.ts:442:1 › a maximum-length unbroken synthetic device name wraps inside a mobile approval dialog (682ms)
+  ✓  21 tests/browser/repair.spec.ts:485:1 › Fo can execute only after approval-only review, with delayed polling, reload, separate undo and revocation (9.5s)
+  ✓  22 tests/browser/repair.spec.ts:629:1 › captured pending polls cannot downgrade acknowledged Fo approval or reopen a declined plan (4.7s)
+  ✓  23 tests/browser/repair.spec.ts:745:1 › authenticated bearer owner sees exact UTC session and deployment deadlines with unknown account evidence (479ms)
+  ✓  24 tests/browser/review.spec.ts:40:1 › client-review preview, approval-only SDK execution, three rendered pages and separately approved artifact undo (6.9s)
+  ✓  25 tests/browser/review.spec.ts:159:1 › revoke remains available during inspection; a late result cannot repopulate a new lease; repeated plans reset exact approval (3.0s)
+  ✓  26 tests/browser/review.spec.ts:220:1 › a delayed pending status cannot downgrade acknowledged approval or resurrect a declined review plan (2.7s)
+  ✓  27 tests/browser/review.spec.ts:299:1 › each new plan must load its own comparison images and image failure cancels the approval checkbox (2.1s)
+
+  1 skipped
+  26 passed (49.3s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

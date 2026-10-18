@@ -88,6 +88,14 @@ static void geometry(KeynoteIWorkItem *item,CGFloat x,CGFloat y,NSInteger width,
   NSPoint point=item.position;
   require(fabs(point.x-x)<0.5&&fabs(point.y-y)<0.5&&item.width==width&&item.height==height);
 }
+static NSData *pageRaster(PDFPage *page) {
+  NSRect box=[page boundsForBox:kPDFDisplayBoxMediaBox];require(fabs(box.size.width/box.size.height-16.0/9.0)<0.02);
+  NSImage *image=[page thumbnailOfSize:NSMakeSize(1280,720) forBox:kPDFDisplayBoxMediaBox];
+  NSBitmapImageRep *bitmap=[[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:1280 pixelsHigh:720 bitsPerSample:8 samplesPerPixel:3 hasAlpha:NO isPlanar:NO colorSpaceName:NSDeviceRGBColorSpace bytesPerRow:1280*3 bitsPerPixel:24];require(bitmap!=nil);
+  [NSGraphicsContext saveGraphicsState];[NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithBitmapImageRep:bitmap]];
+  [NSColor.whiteColor setFill];NSRectFill(NSMakeRect(0,0,1280,720));[image drawInRect:NSMakeRect(0,0,1280,720)];[NSGraphicsContext restoreGraphicsState];
+  NSData *png=[bitmap representationUsingType:NSBitmapImageFileTypePNG properties:@{}];require(png.length>2000&&png.length<=8*1024*1024);return png;
+}
 static void render(NSString *directory) {
   NSString *path=[directory stringByAppendingPathComponent:@"review.pdf"];
   PDFDocument *pdf=[[PDFDocument alloc] initWithData:readBounded(path,16*1024*1024)];require(pdf.pageCount==3);
@@ -95,14 +103,7 @@ static void render(NSString *directory) {
   for(NSString *marker in @[@"4.5%",@"540",@"12,000",@"5.0%",@"Maya Chen",@"2026-10-25",@"Hypothesis",@"5.5% gross conversion"])
     require([all rangeOfString:marker options:NSCaseInsensitiveSearch].location!=NSNotFound);
   for(NSUInteger i=0;i<3;i++) {
-    PDFPage *page=[pdf pageAtIndex:i];NSRect box=[page boundsForBox:kPDFDisplayBoxMediaBox];require(fabs(box.size.width/box.size.height-16.0/9.0)<0.02);
-    NSImage *image=[page thumbnailOfSize:NSMakeSize(1280,720) forBox:kPDFDisplayBoxMediaBox];
-    // Flatten to a fixed RGB canvas, with no embedded profile or transparent ink.
-    NSBitmapImageRep *bitmap=[[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:1280 pixelsHigh:720 bitsPerSample:8 samplesPerPixel:3 hasAlpha:NO isPlanar:NO colorSpaceName:NSDeviceRGBColorSpace bytesPerRow:1280*3 bitsPerPixel:24];require(bitmap!=nil);
-    [NSGraphicsContext saveGraphicsState];[NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithBitmapImageRep:bitmap]];
-    [NSColor.whiteColor setFill];NSRectFill(NSMakeRect(0,0,1280,720));[image drawInRect:NSMakeRect(0,0,1280,720)];[NSGraphicsContext restoreGraphicsState];
-    NSData *png=[bitmap representationUsingType:NSBitmapImageFileTypePNG properties:@{}];require(png.length>2000);
-    writeNew([NSString stringWithFormat:@"page-%lu.png",(unsigned long)i+1],png);
+    writeNew([NSString stringWithFormat:@"page-%lu.png",(unsigned long)i+1],pageRaster([pdf pageAtIndex:i]));
   }
 }
 int main(int argc,const char *argv[]) { @autoreleasepool { @try {
@@ -111,6 +112,12 @@ int main(int argc,const char *argv[]) { @autoreleasepool { @try {
     require(argc==2);applicationURL();
     NSDictionary *identity=@{@"recipeSha256":@REVIEW_RECIPE_SHA,@"dictionarySha256":@REVIEW_DICTIONARY_SHA,@"keynoteVersion":@REVIEW_KEYNOTE_VERSION};
     NSData *json=[NSJSONSerialization dataWithJSONObject:identity options:0 error:nil];fwrite(json.bytes,1,json.length,stdout);return 0;
+  }
+  if([command isEqualToString:@"pdf-render"]) {
+    require(argc==4);NSString *path=[NSString stringWithUTF8String:argv[2]],*number=[NSString stringWithUTF8String:argv[3]];
+    require([@[@"1",@"2",@"3"] containsObject:number]);
+    PDFDocument *pdf=[[PDFDocument alloc] initWithData:readBounded(path,16*1024*1024)];require(pdf&&pdf.pageCount==3&&!pdf.isEncrypted);
+    NSData *png=pageRaster([pdf pageAtIndex:number.integerValue-1]);fwrite(png.bytes,1,png.length,stdout);return 0;
   }
   require(argc==3);NSString *path=[NSString stringWithUTF8String:argv[2]];
   if([command isEqualToString:@"pdf-text"]||[command isEqualToString:@"pdf-info"]) {

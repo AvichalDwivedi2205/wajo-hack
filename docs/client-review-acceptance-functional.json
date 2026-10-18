@@ -1,0 +1,246 @@
+{
+  "scope": "Read-only independent cloud functional review; root remains sole source writer",
+  "startingHead": "d9093a908b8bf05dda48c0a9cd58010c60a707ea",
+  "head": "d9093a908b8bf05dda48c0a9cd58010c60a707ea",
+  "branch": "feature/client-review-demo",
+  "sourceSha256": {
+    "src/review/adapter.ts": "2fc1bbed84fd3b004c5d8e98c0f0427245ded84487abaee0ab3cdcc0d8e616f9",
+    "src/review/engine.ts": "1bed03f180bf7aa9ea9467162b45175e25df70b180b6e9fc66546c908c336d8e",
+    "src/review/evidence.ts": "686d914f7efdd4fcb9b6f965f9a10e9246fac64c037df881633f5133bd49e1ec",
+    "src/review/pdf.ts": "66b3b4d9011ea08ae59f1df7155de983b95f2be5c13b7ebccefc90dc86ac70e7",
+    "src/review/png.ts": "16704140381d8820e54ef85fec5d0679886f6cce2616a3fcfca614efaef39a50",
+    "src/review/render.ts": "140cc715ed2fe30ef856d795361c8544396fe68a05a11439883da52e01457b3c",
+    "companion/macos/ReviewHelper.m": "a657ecadd334afe6629555edb6469d98bc6efe1e8b54df6adbf9e7d7a73edeb8"
+  },
+  "totalPassed": 26,
+  "totalFailed": 0,
+  "suites": [
+    {
+      "path": "/tmp/review-acceptance-independent-fixed.json",
+      "passed": 9,
+      "failed": 0,
+      "results": [
+        {
+          "name": "full amount classified partial (settled)",
+          "ok": true,
+          "accepted": false,
+          "code": "REVIEW_EVIDENCE",
+          "message": "Refund amount does not match its full/partial classification."
+        },
+        {
+          "name": "full amount classified partial (pending)",
+          "ok": true,
+          "accepted": false,
+          "code": "REVIEW_EVIDENCE",
+          "message": "Refund amount does not match its full/partial classification."
+        },
+        {
+          "name": "legitimate partial refund excluded",
+          "ok": true,
+          "accepted": true,
+          "metric": 450
+        },
+        {
+          "name": "legitimate pending full refund excluded",
+          "ok": true,
+          "accepted": true,
+          "metric": 450
+        },
+        {
+          "name": "underpayment classified full",
+          "ok": true,
+          "accepted": false,
+          "code": "REVIEW_EVIDENCE",
+          "message": "Refund amount does not match its full/partial classification."
+        },
+        {
+          "name": "artifact none",
+          "ok": true,
+          "state": "succeeded",
+          "message": "Synthetic HTML/PDF simulation verified. This is not a Keynote or hardware result.",
+          "verificationState": "succeeded",
+          "artifacts": 6
+        },
+        {
+          "name": "artifact extra-claim",
+          "ok": true,
+          "state": "uncertain",
+          "message": "Exported page 1 does not match the complete approved text. Preserve the output; inspect the preview and prepare a fresh plan.",
+          "verifyCode": "REVIEW_VERIFY",
+          "artifacts": 0
+        },
+        {
+          "name": "artifact duplicate-page-1",
+          "ok": true,
+          "state": "uncertain",
+          "message": "Stored page-2.png does not match PDF page 2. Preserve the output and verify its rendering locally; no automatic retry was made.",
+          "verifyCode": "REVIEW_RENDER",
+          "artifacts": 0
+        },
+        {
+          "name": "artifact swap-pages-2-3",
+          "ok": true,
+          "state": "uncertain",
+          "message": "Stored page-2.png does not match PDF page 2. Preserve the output and verify its rendering locally; no automatic retry was made.",
+          "verifyCode": "REVIEW_RENDER",
+          "artifacts": 0
+        }
+      ]
+    },
+    {
+      "path": "/tmp/review-adversarial-independent.json",
+      "passed": 10,
+      "failed": 0,
+      "results": [
+        {
+          "name": "conflicting two-current source revisions fail closed",
+          "ok": true,
+          "code": "REVIEW_AMBIGUOUS"
+        },
+        {
+          "name": "selection points to superseded source fails closed",
+          "ok": true,
+          "code": "REVIEW_AMBIGUOUS"
+        },
+        {
+          "name": "rehash inconsistent refund total cannot keep hardcoded 4.5 percent",
+          "ok": true,
+          "code": "REVIEW_EVIDENCE"
+        },
+        {
+          "name": "valid source hash and manifest change invalidate acknowledged approval",
+          "ok": true,
+          "code": "REVIEW_STALE",
+          "jobs": 0
+        },
+        {
+          "name": "concurrent duplicate approvals and commits execute once; retries never replay",
+          "ok": true,
+          "approvals": [
+            "fulfilled",
+            "rejected"
+          ],
+          "commits": [
+            "fulfilled",
+            "rejected",
+            "rejected"
+          ],
+          "undos": [
+            "fulfilled",
+            "rejected"
+          ],
+          "adapterCalls": 1
+        },
+        {
+          "name": "malicious notes cannot alter slides, scope, commands or create an outside file",
+          "ok": true,
+          "metric": 450,
+          "decision": "hold",
+          "adapter": "fixed synthetic",
+          "outsideInstructionFileCreated": false
+        },
+        {
+          "name": "interrupted export with partial PDF is uncertain, unviewable and cannot replay",
+          "ok": true,
+          "state": "uncertain",
+          "adapterCalls": 1,
+          "publicArtifacts": 0
+        },
+        {
+          "name": "late complete bytes after timeout remain uncertain until explicit verify, with no automatic retry",
+          "ok": true,
+          "state": "uncertain",
+          "adapterCalls": 1
+        },
+        {
+          "name": "hardlinked source is rejected despite correct content hash",
+          "ok": true,
+          "code": "REVIEW_FILE"
+        },
+        {
+          "name": "succeeded output modified after verification is not served or undoable",
+          "ok": true,
+          "code": "REVIEW_ARTIFACT_CHANGED",
+          "afterFailedVerify": "uncertain"
+        }
+      ]
+    },
+    {
+      "path": "/tmp/review-crash-independent.json",
+      "passed": 1,
+      "failed": 0,
+      "results": [
+        {
+          "name": "disk-backed SIGKILL during partial export fails closed and never replays",
+          "ok": true,
+          "restartedJob": "uncertain",
+          "pendingPlan": "denied",
+          "approvedPlan": "denied",
+          "consumedPlan": "consumed",
+          "lease": false,
+          "adapterCalls": 0,
+          "partialPdfServed": false
+        }
+      ]
+    },
+    {
+      "path": "/tmp/review-output-binding-independent-fixed.json",
+      "passed": 3,
+      "failed": 0,
+      "results": [
+        {
+          "name": "PDF changed after output check before create inventory is never journaled verified",
+          "ok": true,
+          "state": "uncertain",
+          "message": "Generated artifacts changed after verification. Preserve the output; inspect it locally before preparing a fresh plan. No automatic retry was made.",
+          "artifacts": 0
+        },
+        {
+          "name": "PDF changed after output check before recovery inventory cannot promote uncertain job",
+          "ok": true,
+          "state": "uncertain",
+          "code": "REVIEW_ARTIFACT_CHANGED",
+          "message": "Generated artifacts changed after verification. Preserve the output; inspect it locally before preparing a fresh plan. No automatic retry was made.",
+          "artifacts": 0
+        },
+        {
+          "name": "HTML changed to contradictory launch claim is not described as verified HTML",
+          "ok": true,
+          "state": "uncertain",
+          "message": "The editable review.html does not match the approved synthetic preview. Preserve the output and prepare a fresh plan."
+        }
+      ]
+    },
+    {
+      "path": "/tmp/review-raster-reencoding-independent.json",
+      "passed": 3,
+      "failed": 0,
+      "results": [
+        {
+          "name": "rgb-recompression",
+          "ok": true,
+          "state": "succeeded",
+          "message": "Synthetic HTML/PDF simulation verified. This is not a Keynote or hardware result."
+        },
+        {
+          "name": "rgba-recompression",
+          "ok": true,
+          "state": "succeeded",
+          "message": "Synthetic HTML/PDF simulation verified. This is not a Keynote or hardware result."
+        },
+        {
+          "name": "single-pixel-change",
+          "ok": true,
+          "state": "uncertain",
+          "message": "Stored page-2.png does not match PDF page 2. Preserve the output and verify its rendering locally; no automatic retry was made."
+        }
+      ]
+    }
+  ],
+  "remaining": [
+    "Actual Mac dictionary compilation, Keynote/template export/visual acceptance and installed Automation access are unverified",
+    "Five native cold starts and three real Fo round trips remain unverified",
+    "No GCP, DNS, deployment, real credential configuration or Fo registration actions were performed",
+    "Text equality plus PDF-to-PNG correspondence does not certify visual legibility or image-only claims; synthetic visualApproved remains false"
+  ]
+}
