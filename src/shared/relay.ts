@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { repairRequest } from "./requests.ts";
+import { reviewId, reviewPrepare } from "../review/contracts.ts";
 
 const empty = z.object({}).strict();
 export const agentRequest = z.discriminatedUnion("tool", [
@@ -20,6 +21,11 @@ export const agentRequest = z.discriminatedUnion("tool", [
       args: z.object({ actionId: z.uuid() }).strict(),
     })
     .strict(),
+  z.object({ tool: z.literal("review.snapshot"), args: empty }).strict(),
+  z.object({ tool: z.literal("review.prepare"), args: reviewPrepare }).strict(),
+  z.object({ tool: z.literal("review.commit"), args: reviewId }).strict(),
+  z.object({ tool: z.literal("review.verify"), args: reviewId }).strict(),
+  z.object({ tool: z.literal("review.undo"), args: reviewId }).strict(),
 ]);
 export type AgentRequest = z.infer<typeof agentRequest>;
 export const relayJob = z

@@ -1,5 +1,7 @@
 # Verification evidence — 2026-10-18
 
+The subsequently approved [client-review implementation and cloud checks](CLIENT-REVIEW-VERIFICATION.md) extend the audio baseline below. That report supersedes the credentials-only development scope and records the additional parsing, UI, relay, jobs and native-source handoff. Hardware/live Fo gates remain pending.
+
 The latest [narrow recovery review](RECOVERY-REVIEW.md) starts at remote main `c8dbf2840957b982e2ccb66f017d299624d9d3e5`, excludes uncommitted demo extensions, and adds a captured stale-poll regression. Its separate [full output](recovery-check-output.txt) supersedes the counts below for the scoped recovery branch; historical deployment statements below describe their original passes.
 
 This report concerns the code built in `/workspace/wajo-hack` in a Linux cloud environment. **All successful repairs used synthetic fixtures. No actual personal-device repair, real Mac test, or live Fo registration has been demonstrated.**

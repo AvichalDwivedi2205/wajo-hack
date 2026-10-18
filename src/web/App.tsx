@@ -28,8 +28,9 @@ import {
   X,
 } from "lucide-react";
 import type { Action, AppStatus, Plan, Snapshot } from "../shared/types.ts";
+import { ReviewWorkspace } from "./ReviewWorkspace.tsx";
 
-type View = "workspace" | "history" | "permissions" | "connection";
+type View = "workspace" | "history" | "permissions" | "connection" | "review";
 type BrowserAuth = {
   csrfToken?: string;
   expiresAt?: number;
@@ -363,6 +364,7 @@ export function App() {
       )
     : 0;
   const nav = [
+    { key: "review" as const, text: "Client review", icon: Activity },
     {
       key: "workspace" as const,
       text: "Fix workspace",
@@ -686,6 +688,7 @@ export function App() {
               </button>
             </div>
           )}
+          {view === "review" && <ReviewWorkspace request={api} />}
           {view === "workspace" && (
             <>
               <div className="page-heading">
@@ -1411,7 +1414,7 @@ export function App() {
                     <strong>Working locally</strong>
                     <p>
                       Streamable HTTP MCP at <code>/mcp</code> and a stdio
-                      bridge. Five bounded tools share the same approval engine
+                      bridge. Bounded tools share the same approval engine
                       and action history.
                     </p>
                   </div>

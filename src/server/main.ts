@@ -8,6 +8,13 @@ import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { SessionBroker } from "./session.ts";
 import { FixError } from "../core/errors.ts";
+import type { OwnerService } from "../core/service.ts";
+import { ReviewEngine } from "../review/engine.ts";
+import { reviewDemoRoot } from "../review/setup.ts";
+import {
+  SyntheticReviewAdapter,
+  KeynoteReviewAdapter,
+} from "../review/adapter.ts";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 let config;
@@ -26,6 +33,26 @@ try {
 }
 const port = config.port;
 const real = process.argv.includes("--macos");
+const reviewNative = process.argv.includes("--review-native");
+const reviewEnabled =
+  reviewNative ||
+  process.argv.includes("--review-demo") ||
+  process.env.FO_FIX_REVIEW_ENABLED === "1";
+if (
+  reviewNative &&
+  (!real || config.mode !== "local" || !process.env.FO_FIX_REVIEW_ROOT)
+) {
+  console.error(
+    "Native review requires --macos --review-native, an explicitly scoped FO_FIX_REVIEW_ROOT and the reviewed native helper. No permissions or credentials are configured automatically.",
+  );
+  process.exit(2);
+}
+if (reviewEnabled && config.mode === "remote" && config.backend !== "session") {
+  console.error(
+    "Remote client review requires the session gateway. File access and approval remain on the local companion.",
+  );
+  process.exit(2);
+}
 if (real && config.mode === "remote") {
   console.error(
     "Remote mode cannot colocate native hardware. Run the local Mac companion and a bounded device session.",
@@ -46,8 +73,33 @@ const engine = store
         ? new MacOSAdapter(join(root, "companion/macos/.build/fo-fix-audio"))
         : new FixtureAdapter(store),
     )
-  : new SessionBroker(config.mode === "remote" ? config.deviceId! : "");
-const { app, errors } = createApp(engine, port, { config });
+  : new SessionBroker(
+      config.mode === "remote" ? config.deviceId! : "",
+      Date.now,
+      25_000,
+      reviewEnabled,
+    );
+const owner: OwnerService = engine;
+const review =
+  reviewEnabled && store
+    ? new ReviewEngine(
+        store,
+        reviewNative
+          ? resolve(process.env.FO_FIX_REVIEW_ROOT!)
+          : reviewDemoRoot(root, dataPath),
+        reviewNative
+          ? new KeynoteReviewAdapter(
+              join(root, "companion/macos/.build/fo-review"),
+            )
+          : new SyntheticReviewAdapter(),
+        Date.now,
+        reviewNative
+          ? join(root, "companion/macos/.build/fo-review")
+          : undefined,
+      )
+    : undefined;
+if (review) owner.review = review;
+const { app, errors } = createApp(owner, port, { config });
 let vite: Awaited<ReturnType<typeof import("vite").createServer>> | undefined;
 if (process.argv.includes("--production") || real || config.mode === "remote") {
   app.use((_req, res, next) => {
@@ -89,7 +141,7 @@ function stop() {
     );
     // Keep the exclusive journal lock until active writes have been verified
     // and persisted, and their HTTP responses have completed.
-    await Promise.all([closed, engine.shutdown()]);
+    await Promise.all([closed, engine.shutdown(), review?.shutdown()]);
     await vite?.close();
     store?.close();
   })());

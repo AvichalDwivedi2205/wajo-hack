@@ -4,9 +4,11 @@ Fo Reach (formerly Fo Fix; internal compatibility identifiers are retained) prov
 
 This bounded MVP supports **sound-output selection and unmuting**. It does not inspect microphones, record audio, run arbitrary terminal commands, or change security or network settings. Sound output is the first adapter; the permission, proposal, journal, verification, and undo engine is reusable.
 
+The optional **client-review workflow** reconciles ten synthetic files, previews a branded three-slide decision and exports an explicitly labelled cloud HTML/PDF simulation after exact local approval and MCP execution. Fixed native Keynote source and a template seed are provided; actual Mac execution remains unverified. See [the demo and native handoff](docs/CLIENT-REVIEW.md) and [implementation/test evidence](docs/CLIENT-REVIEW-VERIFICATION.md). Run it with `npm run build` followed by `npm run review:demo` after installing the documented review-only Linux prerequisites.
+
 **The cloud fixture is synthetic. No real device has been repaired.** Authenticated remote fixture/session profiles are implemented and tested with synthetic identities and devices; actual hosting, Fo registration and macOS hardware validation remain incomplete. The existing Fo account connector is a separate integration, not a connection to this companion.
 
-The planned hostname is `fo-reach.latchgrid.in`; this review did not provision DNS or publish a service. See the [version 4 review and regression results](docs/REVIEW-2026-10-18.md).
+The selected hostname is `fo-reach.latchgrid.in`. The parent reports server and DNS infrastructure prepared separately; app activation remains pending approved credential configuration and reviewed source deployment. This source task changes neither GCP nor DNS. See [current client-review evidence](docs/CLIENT-REVIEW-VERIFICATION.md); the [version 4 review](docs/REVIEW-2026-10-18.md) records the earlier audio baseline.
 
 ## Run in this cloud workspace
 
@@ -19,7 +21,7 @@ npm run build
 node --import tsx src/server/main.ts --production
 ```
 
-Open `http://127.0.0.1:4310` **inside this environment**. Local mode deliberately binds only to loopback and rejects foreign Host and Origin headers. It has not been publicly deployed. If your cloud environment provides a preview, it must preserve the loopback host and same-origin browser behavior; this build does not assume any provider-specific preview route.
+Open `http://127.0.0.1:4310` **inside this environment**. Local mode deliberately binds only to loopback and rejects foreign Host and Origin headers. This command does not publish a public service. If your cloud environment provides a preview, it must preserve the loopback host and same-origin browser behavior; this build does not assume any provider-specific preview route.
 
 `npm start` is an equivalent convenience command. For a cloud process runner, launch the Node command directly so its stop signal targets the companion rather than only an npm/loader wrapper. The long-running scripts use `node --import tsx`; the loader is a runtime dependency.
 

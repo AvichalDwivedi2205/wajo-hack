@@ -1,0 +1,4 @@
+Synthetic dated review notes: 2026-10-18
+Cohort: alder-oct-v1
+Existing slide claims 5.5% gross conversion.
+Use the approved retained metric and existing 5% gate.

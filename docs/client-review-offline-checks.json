@@ -1,0 +1,22 @@
+{
+  "source": "synthetic local fixture only",
+  "cloudActionsExecuted": false,
+  "publicTLSRequestsMade": false,
+  "upstreamHostOriginForwardingGuards": true,
+  "authoritiesSeparate": true,
+  "anonymousRejected": true,
+  "csrfEnforced": true,
+  "databaseMode0600": true,
+  "ownerSessionDoesNotSurviveRestart": true,
+  "restartRevokesReadAndPendingApproval": true,
+  "sqliteHistoryAndFixturePersist": true,
+  "missingMountRejected": true,
+  "systemdSyntaxWithLocalExecutablePaths": true,
+  "caddyParsing": "blocked: Caddy executable unavailable; no binary installed",
+  "remaining": [
+    "Actual VM/systemd sandbox and mounted persistent disk",
+    "Caddy installed-version validation and forwarded-header tests through real HTTPS",
+    "Authorized DNS/CA provisioning, GCP access/resources and Fo registration",
+    "Mac hardware validation"
+  ]
+}

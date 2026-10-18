@@ -5,7 +5,9 @@ import type {
   Recipe,
   Snapshot,
 } from "../shared/types.ts";
+import type { ReviewAgent } from "../review/contracts.ts";
 export interface AgentService {
+  review?: ReviewAgent;
   status(audience?: "local" | "agent"): AppStatus | Promise<AppStatus>;
   inspect(): Promise<Snapshot>;
   propose(recipe: Recipe, deviceId?: string): Promise<Plan>;

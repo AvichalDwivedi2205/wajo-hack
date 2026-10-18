@@ -17,6 +17,17 @@ import {
   type RelayJob,
 } from "../shared/relay.ts";
 import type { OwnerAuthentication } from "./auth.ts";
+import type {
+  ReviewAgent,
+  ReviewSnapshot,
+  ReviewPlan,
+  ReviewJob,
+} from "../review/contracts.ts";
+import {
+  reviewSnapshotSchema,
+  reviewPlanSchema,
+  reviewJobSchema,
+} from "../review/contracts.ts";
 
 type Job = RelayJob & {
   state: "queued" | "delivered" | "completed";
@@ -26,6 +37,7 @@ type Job = RelayJob & {
   timer: ReturnType<typeof setTimeout>;
 };
 export class SessionBroker implements OwnerService {
+  review?: ReviewAgent;
   private session?: {
     id: string;
     source: Mode;
@@ -40,7 +52,51 @@ export class SessionBroker implements OwnerService {
     readonly deviceId: string,
     private clock: () => number = Date.now,
     private requestTimeoutMs = 25_000,
-  ) {}
+    reviewEnabled = false,
+  ) {
+    if (reviewEnabled)
+      this.review = {
+        snapshot: () =>
+          this.reviewResult(reviewSnapshotSchema, {
+            tool: "review.snapshot",
+            args: {},
+          }),
+        prepare: (snapshotId) =>
+          this.reviewResult(reviewPlanSchema, {
+            tool: "review.prepare",
+            args: { snapshotId },
+          }),
+        commit: (id) =>
+          this.reviewResult(reviewJobSchema, {
+            tool: "review.commit",
+            args: { id },
+          }),
+        verify: (id) =>
+          this.reviewResult(reviewJobSchema, {
+            tool: "review.verify",
+            args: { id },
+          }),
+        undo: (id) =>
+          this.reviewResult(reviewPlanSchema, {
+            tool: "review.undo",
+            args: { id },
+          }),
+      };
+  }
+  private async reviewResult<T>(
+    schema: z.ZodType<T>,
+    request: AgentRequest,
+  ): Promise<T> {
+    const value = await this.dispatch(request),
+      parsed = schema.safeParse(value);
+    invariant(
+      parsed.success,
+      "INVALID_DEVICE_RESULT",
+      "The companion returned invalid or excessive review metadata. No document bytes are accepted through the relay.",
+      502,
+    );
+    return parsed.data!;
+  }
   private active() {
     return (
       !!this.session && this.session.expiresAt > this.clock() && !this.stopping
@@ -144,11 +200,11 @@ export class SessionBroker implements OwnerService {
         reject(
           new FixError(
             job?.state === "delivered" &&
-              request.tool === "fo_fix_execute_approved"
+            ["fo_fix_execute_approved", "review.commit"].includes(request.tool)
               ? "EXECUTION_UNCERTAIN"
               : "DEVICE_TIMEOUT",
             job?.state === "delivered" &&
-              request.tool === "fo_fix_execute_approved"
+            ["fo_fix_execute_approved", "review.commit"].includes(request.tool)
               ? "The device did not return an execution result. Inspect its local journal; no automatic retry was made."
               : "The device did not respond. No request was redelivered.",
             504,

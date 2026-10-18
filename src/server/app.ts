@@ -14,6 +14,7 @@ import { SessionBroker, mountSessionRoutes } from "./session.ts";
 import { configurationDiagnostics } from "./diagnostics.ts";
 import { BearerAuth } from "./bearer-auth.ts";
 import { trustedProxyCheck } from "./proxy.ts";
+import { mountReview } from "../review/routes.ts";
 
 export function createApp(
   engine: OwnerService,
@@ -119,6 +120,7 @@ export function createApp(
     next();
   });
   const id = z.object({ id: z.uuid() }).strict();
+  mountReview(app,engine,config,human);
   const empty = z.object({}).strict();
   app.get("/api/status", async (_req, res) =>
     res.json({

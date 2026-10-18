@@ -2324,3 +2324,259 @@ dt {
   outline: 3px solid #49765c;
   outline-offset: 2px;
 }
+
+/* Scoped client-review workspace */
+.review-workspace {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+.review-intro {
+  position: relative;
+  padding: 42px 0 30px;
+}
+.review-intro h1 {
+  font-size: clamp(40px, 6vw, 70px);
+  line-height: 1.03;
+  letter-spacing: -2px;
+  color: #173f32;
+  margin: 20px 0;
+}
+.review-intro h1 em {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  color: #55765b;
+}
+.review-intro p {
+  max-width: 560px;
+  line-height: 1.7;
+  color: #526759;
+}
+.review-tag {
+  display: inline-block;
+  background: #efe2bd;
+  color: #735416;
+  border-radius: 20px;
+  padding: 8px 13px;
+  font-size: 10px;
+  letter-spacing: 1.3px;
+  font-weight: 700;
+}
+.review-workspace .settings-card {
+  margin: 22px 0;
+  overflow-wrap: anywhere;
+}
+.review-consent > div:first-child,
+.review-controls,
+.review-proposal-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.review-consent li {
+  margin: 6px 0;
+}
+.review-consent p,
+.review-workspace .settings-card p {
+  line-height: 1.7;
+}
+.review-controls {
+  margin-top: 18px;
+}
+.review-controls span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+.review-metric {
+  background: #173f32;
+  color: #f5f0e2;
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 40px;
+  border-radius: 20px;
+  padding: 42px;
+}
+.review-metric .eyebrow {
+  color: #dac185;
+}
+.review-metric h2 {
+  font-size: 76px;
+  letter-spacing: -4px;
+  margin: 20px 0;
+  color: #f5f0e2;
+  line-height: 1;
+}
+.review-metric h2 span {
+  font: 24px Georgia;
+  letter-spacing: 0;
+}
+.review-metric p {
+  line-height: 1.7;
+  color: #e0e5d6;
+}
+.review-metric s {
+  color: #e2bc76;
+}
+.review-metric aside {
+  border-left: 1px solid #657c60;
+  padding-left: 30px;
+}
+.review-metric h3 {
+  font: 30px Georgia;
+  color: #f5f0e2;
+}
+.review-metric small {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #c6d2bd;
+}
+.review-source-list details {
+  padding: 12px 0;
+  border-bottom: 1px solid #e4e7dd;
+  font-size: 12px;
+}
+.review-source-list code {
+  display: block;
+  font-size: 11px;
+  padding: 10px;
+  overflow-wrap: anywhere;
+}
+.review-proposal-heading {
+  justify-content: space-between;
+  margin: 40px 0 20px;
+}
+.review-slide {
+  background: #f6f0e2;
+  border: 1px solid #d6d8c5;
+  border-radius: 15px;
+  padding: 40px;
+  margin: 22px 0;
+  box-shadow: 0 12px 35px #173f3210;
+  color: #173f32;
+  overflow-wrap: anywhere;
+}
+.review-slide header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  letter-spacing: 2px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #d4d8c8;
+  font-weight: 700;
+}
+.review-slide h2 {
+  font: clamp(28px, 4vw, 44px) / 1.12 Georgia;
+  color: #173f32;
+  margin: 28px 0;
+}
+.review-slide-body p {
+  font-size: 17px;
+  line-height: 1.6;
+}
+.review-slide-1 .review-slide-body p:first-child {
+  font-size: 42px;
+  font-weight: 650;
+  color: #173f32;
+}
+.review-slide footer {
+  margin-top: 30px;
+  font-size: 10px;
+  color: #4a5b43;
+}
+.review-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.review-comparison figure {
+  margin: 0;
+}
+.review-comparison img {
+  display: block;
+  width: 100%;
+  border: 1px solid #d9dbcf;
+  border-radius: 8px;
+}
+.review-comparison figcaption {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-top: 8px;
+  color: #805c21;
+}
+.review-jobs article {
+  border-top: 1px solid #ddd;
+  padding: 24px 0;
+}
+.review-jobs code {
+  font-size: 11px;
+}
+.review-renderings {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+}
+.review-renderings img {
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+.review-readiness {
+  padding: 30px;
+  background: #e8ecdf;
+  border-radius: 15px;
+  color: #284b38;
+}
+.review-readiness p {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.review-readiness b {
+  font-size: 13px;
+}
+@media (max-width: 700px) {
+  .review-metric {
+    grid-template-columns: 1fr;
+    padding: 24px;
+    gap: 20px;
+  }
+  .review-metric aside {
+    border: 0;
+    border-top: 1px solid #657c60;
+    padding: 20px 0 0;
+  }
+  .review-metric h2 {
+    font-size: 60px;
+  }
+  .review-slide {
+    padding: 22px;
+  }
+  .review-slide header {
+    letter-spacing: 1px;
+    font-size: 9px;
+  }
+  .review-slide-body p {
+    font-size: 13px;
+  }
+  .review-renderings {
+    grid-template-columns: 1fr;
+  }
+  .review-intro h1 {
+    letter-spacing: -1px;
+  }
+  .review-comparison {
+    gap: 8px;
+  }
+}
+.review-workspace .settings-card {
+  padding: 28px;
+}
+@media (max-width: 700px) {
+  .review-workspace .settings-card {
+    padding: 20px;
+  }
+}

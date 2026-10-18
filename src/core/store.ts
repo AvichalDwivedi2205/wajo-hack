@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync, chmodSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Action, AuditEvent, DeviceState, Plan } from "../shared/types.ts";
+import type { ReviewPlan, ReviewJob } from "../review/contracts.ts";
 
 export const initialFixture: DeviceState = {
   outputId: "fixture-hdmi",
@@ -35,6 +36,7 @@ export type StoredData = {
   actions: Action[];
   events: AuditEvent[];
   fixture: DeviceState;
+  review?: { plans: ReviewPlan[]; jobs: ReviewJob[] };
 };
 export class Store {
   private db: DatabaseSync;

@@ -1,0 +1,220 @@
+
+> fo-fix@0.1.0 check
+> npm run build && npm test && npm run test:e2e
+
+
+> fo-fix@0.1.0 build
+> tsc --noEmit && vite build
+
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 1730 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.66 kB │ gzip:  0.40 kB
+dist/assets/index-DGM2JxTa.css   34.02 kB │ gzip:  7.73 kB
+dist/assets/index-Dwe2dwdd.js   274.65 kB │ gzip: 84.58 kB
+
+✓ built in 161ms
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+
+> fo-fix@0.1.0 test
+> tsx --test tests/*.test.ts
+
+✔ human permission endpoint requires exact local Origin; foreign Host and Origin rejected (58.692515ms)
+✔ API validates strict schema and rejects arbitrary commands (20.668333ms)
+✔ oversized requests are rejected without echoing input or taking down the companion (9.975117ms)
+✔ HTTP approval cannot be spoofed through execute arguments or missing local review Origin (26.455757ms)
+✔ real MCP SDK client lists bounded tools; no grant, approve, terminal or security tools exist (65.514095ms)
+✔ MCP proposal cannot execute until human review; verification and history are shared (44.014742ms)
+✔ stdio bridge speaks MCP and shares the running companion rather than creating independent approvals (367.047266ms)
+✔ deployment deadline is returned only to the authenticated owner and bounds the session (63.156974ms)
+✔ explicit bearer configuration needs no OAuth provider and rejects shared credentials, unbounded proxy trust and missing or excessive expiry (0.818754ms)
+✔ Fo-style explicit bearer MCP cannot sign in or approve; separate owner cookie plus CSRF enables verified fixture repair and separately approved undo (93.348755ms)
+✔ bearer access fails closed for query credentials, foreign origins, owner-session expiry, deployment expiry and rate-limited login guesses (20.238449ms)
+✔ exact trusted proxy allowlist rejects nonproxy peers and spoofed forwarding headers while preserving Host and Origin checks (10.001297ms)
+✔ a separate companion bearer authenticates only device relay; even cloud owner sessions cannot grant or approve device operations (9.218295ms)
+✔ remote mode fails closed without complete identity, HTTPS and isolated-client configuration (1.957268ms)
+✔ diagnostics disclose presence and fixed issue messages without values or model calls (0.349264ms)
+✔ the real remote entry point refuses missing identity before creating a journal or listener (650.81601ms)
+✔ optional network diagnostics use fixed unauthenticated HEAD probes and sanitize proxy failures (21.139014ms)
+✔ offline helper is self-contained, CSP-pinned and denies network/form submission (1.061962ms)
+✔ offline helper has no network/storage/telemetry APIs or implicit generation handler (0.279571ms)
+✔ oauth: authenticated remote MCP relay preserves local inspection consent, exact approval, verification and separately approved undo (357.190372ms)
+✔ bearer: authenticated remote MCP relay preserves local inspection consent, exact approval, verification and separately approved undo (177.31947ms)
+✔ session delivery is single-use, duplicate results are idempotent and expired sessions cannot reconnect automatically (1.245832ms)
+✔ a delivered execution timeout is uncertain and is never redelivered (25.834558ms)
+✔ malformed companion results settle the original request instead of orphaning it (0.983316ms)
+✔ bridge does not start a delivered approved execution after deadline during its long poll (19.457141ms)
+✔ bridge does not start a delivered approved execution after cancellation during its long poll (10.149985ms)
+✔ device bridge rejects owner/terminal commands supplied by a gateway before calling the local MCP client (10.270953ms)
+✔ agent history stays bounded as the full local journal grows (105.912179ms)
+✔ inspection and proposals require a temporary permission lease (1.161878ms)
+✔ fixture repair verifies a fresh read and undo restores the original state with separate approval (2.116352ms)
+✔ execution without approval and after denial cannot change state (0.830371ms)
+✔ approval is bound to exact digest and expires (0.471263ms)
+✔ approved plans also expire before execution (0.543439ms)
+✔ revocation invalidates approvals and blocks future reads (0.655223ms)
+✔ lease expiry blocks writes despite earlier approval (0.457472ms)
+✔ revocation while native pre-write inspection is in flight prevents the write (1.069843ms)
+✔ revocation while native inspection is in flight prevents returning state (0.614393ms)
+✔ device drift before approval and after approval fails closed (0.82937ms)
+✔ concurrent replay executes at most once (0.782771ms)
+✔ undo refuses to overwrite a newer external setting (0.72026ms)
+✔ verification failure is reported and no automatic retry occurs (0.746498ms)
+✔ adapter error after partial write stays uncertain, journaled, and non-replayable (0.745706ms)
+✔ unmute is scoped to active output and undo restores its prior mute state (1.211341ms)
+✔ unsupported or unavailable controls do not produce a plan (0.44944ms)
+✔ history persists; interrupted writes become uncertain; access and approvals do not survive restart (2.234827ms)
+✔ two companion processes cannot keep separate mutable copies of one journal (1004.192995ms)
+✔ declining an approved plan interrupts its pre-write read instead of waiting behind execution (0.927113ms)
+✔ declining a plan interrupts an in-flight approval check (0.568626ms)
+✔ revoking and regranting permission cannot revive an old in-flight read or proposal (0.801348ms)
+✔ approval and execution deadlines are checked again after asynchronous inspection (4.928472ms)
+✔ every write retires other approvals so identical later state cannot revive them (1.97933ms)
+✔ replacing an inspection lease invalidates pending and approved plans (0.703474ms)
+✔ shutdown cancels a pre-write read and refuses new permission grants (1.005248ms)
+✔ shutdown waits for an already-started write to verify and journal its result (1.13571ms)
+✔ state revision is independent of device and object-property ordering (0.324527ms)
+✔ agent history is withheld after revocation while the local human journal remains available (1.355473ms)
+✔ SIGTERM gracefully persists revocation, invalidates pending plans and releases the real server journal (609.777309ms)
+✔ oversized MCP evidence returns a bounded error without losing subsequent status or local evidence (38.169836ms)
+✔ native wire contract preserves mute capability: undefined (2.694793ms)
+✔ native wire contract preserves mute capability: null (0.256618ms)
+✔ native wire contract preserves mute capability: false (0.193064ms)
+✔ native wire contract preserves mute capability: true (0.131524ms)
+✔ native wire contract rejects ambiguous mute values and unrecognized fields (1.14261ms)
+✔ missing native mute capability remains inspectable but cannot authorize a mute repair (3.478315ms)
+✔ remote MCP validates signed access tokens, audience, client, subject, scope, type and expiry (19.66735ms)
+✔ remote startup rejects anonymous MCP and owner API; protected-resource discovery remains public (28.042856ms)
+✔ owner PKCE session and CSRF protect grants and approvals; MCP bearer cannot become owner (84.344825ms)
+✔ login callback state is cookie-bound, single-use and cannot exchange an MCP token for an owner session (11.700536ms)
+✔ owner sessions expire and owner/companion tokens are rejected by MCP (15.935597ms)
+✔ remote JWKS verification reads only the pinned HTTPS key endpoint with bounded responses and no redirect following (3.274094ms)
+✔ three synthetic SDK/gateway/companion review runs preserve local authority and an export lasting beyond the 25-second audio timeout (35699.334035ms)
+✔ relay review allowlist and metadata schemas reject arbitrary commands, extra fields and document payloads (1.284429ms)
+✔ review scope is separate from audio; explicit revisions beat timestamps and yield exact ID-proven retained conversion (977.70856ms)
+✔ reject duplicate visitor IDs (784.695059ms)
+✔ reject missing visitor IDs (725.352348ms)
+✔ reject two paid transactions for one visitor (808.358812ms)
+✔ reject duplicate transaction IDs (737.13934ms)
+✔ reject unmatched paid visitor (728.241176ms)
+✔ reject impossible calendar date (838.037723ms)
+✔ reject paid after cutoff (1082.839013ms)
+✔ reject wrong paid cohort (808.331191ms)
+✔ reject duplicate refund (750.884087ms)
+✔ reject unmatched refund (697.411642ms)
+✔ reject mismatched refund cohort (686.094894ms)
+✔ reject mismatched refund cutoff (726.478151ms)
+✔ reject incorrect full refund amount (702.327176ms)
+✔ reject cached formula <f>1+1</f> (367.361372ms)
+✔ reject cached formula <f/> (350.396746ms)
+✔ reject cached formula <odd-prefix:f xmlns:od (362.754943ms)
+✔ reject unsupported xl/vbaProject.bin (61.786165ms)
+✔ reject unsupported xl/externalLinks/externalLink1.xml (72.444978ms)
+✔ reject forged ZIP expansion even when local and central declared lengths agree (89.502882ms)
+✔ reject conflicting rules PDF fields (816.216313ms)
+✔ reject conflicting brief PDF fields (854.8653ms)
+✔ reject symlink source, traversal manifest, and oversized PNG before decoding (28.198385ms)
+✔ bounded regular reads reject oversize before allocation (13.633408ms)
+✔ approval-only, async output verification, preserved originals and separately approved safe undo (2299.061548ms)
+✔ commit refuses source approval (914.280044ms)
+✔ commit refuses expired approval (844.45152ms)
+✔ commit refuses denied approval (828.025324ms)
+✔ commit refuses revoked approval (801.669263ms)
+✔ revoke wins over delayed grant and denial wins over delayed create approval (813.666072ms)
+✔ deny/revoke win over deferred undo inventory checks (1588.704859ms)
+✔ PNG validator rejects high-bit chunk aliases, animations and concatenated compressed streams (1.52991ms)
+✔ timed-out native-style work keeps exclusive worker and drains before shutdown; restart never replays (1661.418992ms)
+✔ undo refuses modified or unrelated artifacts and native mode never silently falls back (1614.198912ms)
+✔ render verification rejects tiny, transparent and flat pages while allowing visible slide contrast (216.192339ms)
+✔ PDF page metadata cannot spoof the independent page count or exceed the input page cap (59.26405ms)
+✔ output verification requires every approved fragment on its own page, no template sentinels and nonblank renders (1890.232111ms)
+✔ native receipt recovery always reads physical matching evidence even when cached (cloud adapter simulation only) (2372.350499ms)
+✔ parallel preview reads have a bounded queue and wrong snapshot digests never return source bytes (1124.626346ms)
+✔ explicit cloud setup stages only synthetic source files under app data, reuses exact sources and never overwrites changed data (89.060037ms)
+✔ an ancestor changed to a symlink at adapter entry cannot redirect generated bytes outside the approved output scope (901.929085ms)
+✔ shutdown waits for a consumed undo to finish journaling before the store may close (1699.232009ms)
+✔ qualifying refund evidence identifies the actual rows when a valid pending refund is excluded (799.084856ms)
+ℹ tests 115
+ℹ suites 0
+ℹ pass 115
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 38870.152692
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+
+> fo-fix@0.1.0 test:e2e
+> playwright test
+
+[WebServer] (node:23445) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:23458) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] npm notice
+[WebServer] npm notice New major version of npm available! 11.9.0 -> 12.2.0
+[WebServer] npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+[WebServer] npm notice To update run: npm install -g npm@12.2.0
+[WebServer] npm notice
+[WebServer] (node:23469) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:23482) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] Fo Fix: http://127.0.0.1:4318 · SYNTHETIC FIXTURE — no real device attached · local mode · MCP /mcp
+
+Running 27 tests using 1 worker
+
+(node:23490) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/browser/offline-credentials.spec.ts:139:3 › Clear cancels generation while hash 1 is pending and discards its late result (458ms)
+  ✓   2 tests/browser/offline-credentials.spec.ts:139:3 › Clear cancels generation while hash 2 is pending and discards its late result (357ms)
+  ✓   3 tests/browser/offline-credentials.spec.ts:174:3 › cancelled hash success cannot alter a newer pending generation (408ms)
+  ✓   4 tests/browser/offline-credentials.spec.ts:174:3 › cancelled hash failure cannot alter a newer pending generation (391ms)
+  ✓   5 tests/browser/offline-credentials.spec.ts:231:1 › a current hash failure clears pending state and permits an explicit retry (370ms)
+  -   6 tests/browser/offline-credentials.spec.ts:262:1 › downloaded standalone HTML works directly with synthetic bytes where file navigation is supported
+  ✓   7 tests/browser/offline-credentials.spec.ts:330:1 › offline click-only generation hashes exact synthetic strings, masks values and exports only digests without network/storage (456ms)
+  ✓   8 tests/browser/offline-credentials.spec.ts:413:1 › helper fails closed on entropy failure and discards generation finishing after pagehide (299ms)
+(node:23844) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   9 tests/browser/repair.spec.ts:14:1 › fixture repair, reload-persisted history, separately approved undo, denial, and revocation (1.9s)
+  ✓  10 tests/browser/repair.spec.ts:92:1 › mobile layout has no horizontal overflow and integration is candid (402ms)
+  ✓  11 tests/browser/repair.spec.ts:123:1 › all main screens pass automated WCAG A/AA checks; review dialog traps keyboard focus (3.9s)
+  ✓  12 tests/browser/repair.spec.ts:175:1 › an MCP execution updates the open browser even when the browser lost its execute response (2.8s)
+  ✓  13 tests/browser/repair.spec.ts:238:1 › remote owner sign-in has no credential input and begins only the configured HTTPS authorization navigation (424ms)
+  ✓  14 tests/browser/repair.spec.ts:268:1 › cloud device-session interface never offers device permission grants or approval controls (462ms)
+  ✓  15 tests/browser/repair.spec.ts:313:1 › bearer profile uses a separate masked owner form and keeps the credential out of browser storage (511ms)
+  ✓  16 tests/browser/repair.spec.ts:363:3 › bearer: an existing owner session can sign out and sign in again without reloading (453ms)
+  ✓  17 tests/browser/repair.spec.ts:363:3 › oauth: an existing owner session can sign out and sign in again without reloading (456ms)
+  ✓  18 tests/browser/repair.spec.ts:397:3 › redacted history preserves the recorded count and never claims an empty journal (445ms)
+  ✓  19 tests/browser/repair.spec.ts:397:3 › truncated history preserves the recorded count and never claims an empty journal (474ms)
+  ✓  20 tests/browser/repair.spec.ts:442:1 › a maximum-length unbroken synthetic device name wraps inside a mobile approval dialog (658ms)
+  ✓  21 tests/browser/repair.spec.ts:485:1 › Fo can execute only after approval-only review, with delayed polling, reload, separate undo and revocation (9.4s)
+  ✓  22 tests/browser/repair.spec.ts:629:1 › captured pending polls cannot downgrade acknowledged Fo approval or reopen a declined plan (4.7s)
+  ✓  23 tests/browser/repair.spec.ts:745:1 › authenticated bearer owner sees exact UTC session and deployment deadlines with unknown account evidence (486ms)
+  ✓  24 tests/browser/review.spec.ts:40:1 › client-review preview, approval-only SDK execution, three rendered pages and separately approved artifact undo (6.9s)
+  ✓  25 tests/browser/review.spec.ts:159:1 › revoke remains available during inspection; a late result cannot repopulate a new lease; repeated plans reset exact approval (2.7s)
+  ✓  26 tests/browser/review.spec.ts:220:1 › a delayed pending status cannot downgrade acknowledged approval or resurrect a declined review plan (2.6s)
+  ✓  27 tests/browser/review.spec.ts:299:1 › each new plan must load its own comparison images and image failure cancels the approval checkbox (1.9s)
+
+  1 skipped
+  26 passed (48.6s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

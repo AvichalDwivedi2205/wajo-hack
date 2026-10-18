@@ -1,0 +1,125 @@
+{
+  "schema": 1,
+  "synthetic": true,
+  "cohort": "alder-oct-v1",
+  "cutoff": "2026-10-17T23:59:59Z",
+  "ruleId": "retained-v1",
+  "folders": [
+    "Metrics",
+    "Brief",
+    "Creative"
+  ],
+  "selection": {
+    "metrics": "r2",
+    "refunds": "r2",
+    "brief": "r3",
+    "rules": "r2",
+    "notes": "d20261018",
+    "before": "approved-v1",
+    "proposed": "hypothesis-v1",
+    "template": "brand-v1"
+  },
+  "files": [
+    {
+      "id": "metrics-current",
+      "role": "metrics",
+      "path": "Metrics/metrics-r2.xlsx",
+      "revision": "r2",
+      "status": "current",
+      "cohort": "alder-oct-v1",
+      "cutoff": "2026-10-17T23:59:59Z",
+      "sha256": "0c9e52770dbeb9c52126fabd474e28da2f8c885928d927663a2a04b1f8c11b2b"
+    },
+    {
+      "id": "metrics-old",
+      "role": "metrics",
+      "path": "Metrics/metrics-r1.xlsx",
+      "revision": "r1",
+      "status": "superseded",
+      "cohort": "alder-oct-v1",
+      "cutoff": "2026-10-17T23:59:59Z",
+      "sha256": "09393cea99598c2ff6636c50212a7b6285b8ec87d0d947c7070b3bc1aa0c708c"
+    },
+    {
+      "id": "refunds-final",
+      "role": "refunds",
+      "path": "Metrics/refunds-r2.csv",
+      "revision": "r2",
+      "status": "current",
+      "cohort": "alder-oct-v1",
+      "cutoff": "2026-10-17T23:59:59Z",
+      "sha256": "6cce0e699cc67c02318503956d6dac0283a83e67945c799d9f3135740884f4d5"
+    },
+    {
+      "id": "refunds-old",
+      "role": "refunds",
+      "path": "Metrics/refunds-r1.csv",
+      "revision": "r1",
+      "status": "superseded",
+      "cohort": "alder-oct-v1",
+      "cutoff": "2026-10-17T23:59:59Z",
+      "sha256": "96b52e2d22162ebcf7a4cc9db45d46d7b18a8d999e8e96dea1b73c39f22d8deb"
+    },
+    {
+      "id": "client-brief",
+      "role": "brief",
+      "path": "Brief/client-brief-r3.pdf",
+      "revision": "r3",
+      "status": "current",
+      "cohort": "alder-oct-v1",
+      "cutoff": "2026-10-17T23:59:59Z",
+      "sha256": "b17d9e071299f91aed36df36125d2d3f7f968bd73ff9a365cf8db2715ffcf21e"
+    },
+    {
+      "id": "measurement",
+      "role": "rules",
+      "path": "Brief/measurement-r2.pdf",
+      "revision": "r2",
+      "status": "current",
+      "cohort": "alder-oct-v1",
+      "cutoff": "2026-10-17T23:59:59Z",
+      "sha256": "eaee26dff3e8187ebdc27b162835753d63e844e13b56ac5cffc154f1a62dfb60"
+    },
+    {
+      "id": "dated-notes",
+      "role": "notes",
+      "path": "Brief/notes-2026-10-18.txt",
+      "revision": "d20261018",
+      "status": "current",
+      "cohort": "alder-oct-v1",
+      "cutoff": "2026-10-17T23:59:59Z",
+      "sha256": "169d12842d925b950de813c9cd8fba277b388b4b55d3b05eb68102e001a7c91a"
+    },
+    {
+      "id": "before-approved",
+      "role": "before",
+      "path": "Creative/checkout-before.png",
+      "revision": "approved-v1",
+      "status": "current",
+      "cohort": "alder-oct-v1",
+      "cutoff": "2026-10-17T23:59:59Z",
+      "sha256": "dbb80345fa1f24e52f1a62371680512e7027133e86ee9c9bf9e906ac340beca1"
+    },
+    {
+      "id": "proposed-hypothesis",
+      "role": "proposed",
+      "path": "Creative/checkout-proposed.png",
+      "revision": "hypothesis-v1",
+      "status": "current",
+      "cohort": "alder-oct-v1",
+      "cutoff": "2026-10-17T23:59:59Z",
+      "sha256": "0c14a5c7d18128e68e509bf15bfcb1bdce9d4019a518a19a0aebf9ffa54bf382"
+    },
+    {
+      "id": "template-contract",
+      "role": "template",
+      "path": "Creative/template-synthetic.json",
+      "revision": "brand-v1",
+      "status": "current",
+      "cohort": "alder-oct-v1",
+      "cutoff": "2026-10-17T23:59:59Z",
+      "sha256": "9057f053238e2e911e1cb7b5f649b42efea8e360b1966ccc4c3e0ca326c03bf6"
+    }
+  ],
+  "dataClassification": "synthetic-demo"
+}

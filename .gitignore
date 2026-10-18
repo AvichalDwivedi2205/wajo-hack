@@ -26,3 +26,6 @@ coverage/
 *.keychain
 *.har
 *.log
+# Generated review jobs contain local file artifacts and never belong in source.
+fixtures/client-review/Deliverables/
+__pycache__/
