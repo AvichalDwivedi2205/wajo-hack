@@ -2,17 +2,17 @@
 
 This report concerns the code built in `/workspace/wajo-hack` in a Linux cloud environment. **All successful repairs used synthetic fixtures. No actual personal-device repair, real Mac test, or live Fo registration has been demonstrated.**
 
-The latest [Fo execution and credential handoff review](FO-FLOW-REVIEW.md) records approval-only execution, owner deadlines, offline helper checks, independent reviews and known browser/hardware limitations.
+The latest [Clear cancellation review](CLEAR-CANCELLATION-REVIEW.md) records the offline helper reset fix, deterministic regressions, independent reviews and the direct-file policy limit. The preceding [Fo execution and credential handoff review](FO-FLOW-REVIEW.md) records approval-only execution and owner deadlines.
 
 ## Passing checks
 
-The final `npm run check` runs the production TypeScript/bundle build, 70 engine/API/MCP/authentication/session/configuration/proxy/lifecycle/native-contract/response-limit/helper tests, and 16 real Chromium browser tests. Its complete output is retained in [check-output.txt](check-output.txt).
+The final `npm run check` passes the production TypeScript/bundle build, 70 engine/API/MCP/authentication/session/configuration/proxy/lifecycle/native-contract/response-limit/helper tests, and 21 real Chromium browser tests. One additional direct-file check is skipped because Chromium's administrator policy blocks local-file navigation. Its complete output is retained in [check-output.txt](check-output.txt).
 
 | Check                       | Result and scope                                                                                                                                                      |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run build`             | Passed: TypeScript strict check and Vite production bundle                                                                                                            |
 | `npm test`                  | 70 passed, zero failed/skipped: local repair/persistence, HTTP/stdio MCP, lifecycle, remote authentication, configuration and device sessions                         |
-| `npm run test:e2e`          | 16 passed, zero failed: repair flow, responsive layout, automated accessibility, keyboard behavior, browser/MCP interoperability, owner login and companion authority |
+| `npm run test:e2e`          | 21 passed, 1 explicit file-policy skip, zero failed: repair/accessibility, browser/MCP interoperability, owner/companion authority and deterministic helper cancellation |
 | MCP HTTP                    | Official SDK client initialized the server, listed five strict tools, called tools, and verified approval enforcement and shared history                              |
 | MCP stdio                   | Official SDK client started the stdio bridge, listed tools, and read the same running companion's history and permission state                                        |
 | Native build platform guard | Correctly refused macOS compilation on Linux; this is a limitation, not a native-build success                                                                        |

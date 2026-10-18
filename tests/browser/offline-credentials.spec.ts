@@ -6,22 +6,36 @@ import { readFileSync } from "node:fs";
 // All generated values in these tests are deterministic synthetic byte vectors.
 // Never run the helper with real randomness, or retain secret-bearing captures.
 test.use({ trace: "off", screenshot: "off", video: "off" });
-// Managed cloud Chromium blocks file:// navigation. Fulfill the exact standalone
-// file in memory at a loopback document URL; this adds no application endpoint.
+// The loopback tests fulfill the exact standalone file in memory. A separate
+// direct-file test exercises downloaded-file use where browser policy allows it.
 const html = readFileSync(
   new URL("../../tools/offline-credentials.html", import.meta.url),
   "utf8",
 );
 const url = "http://127.0.0.1:4318/__offline-helper-test";
+const fileUrl = new URL(
+  "../../tools/offline-credentials.html",
+  import.meta.url,
+).href;
 type Probe = {
   randomCalls: number;
   storageCalls: number;
   networkCalls: number;
   digestCompleted: number;
+  digestSettled: number;
+  digestCalls: number;
   fail: boolean;
   delay: boolean;
+  rejectDelayed: boolean;
+  delayCall?: number;
   release?: () => void;
+  releases: Array<() => void>;
 };
+declare global {
+  interface Window {
+    __foReachProbe: Probe;
+  }
+}
 async function instrument(page: Page) {
   await page.route(url, (route) =>
     route.fulfill({ contentType: "text/html", body: html }),
@@ -32,10 +46,14 @@ async function instrument(page: Page) {
       storageCalls: 0,
       networkCalls: 0,
       digestCompleted: 0,
+      digestSettled: 0,
+      digestCalls: 0,
       fail: false,
       delay: false,
+      rejectDelayed: false,
+      releases: [],
     };
-    (window as unknown as { __foReachProbe: Probe }).__foReachProbe = probe;
+    window.__foReachProbe = probe;
     Object.defineProperty(crypto, "getRandomValues", {
       value: (bytes: Uint8Array) => {
         if (probe.fail) throw new Error("synthetic entropy failure");
@@ -47,15 +65,23 @@ async function instrument(page: Page) {
     const originalDigest = crypto.subtle.digest.bind(crypto.subtle);
     Object.defineProperty(crypto.subtle, "digest", {
       value: async (...args: Parameters<SubtleCrypto["digest"]>) => {
-        if (probe.delay) {
-          probe.delay = false;
-          await new Promise<void>((resolve) => {
-            probe.release = resolve;
-          });
+        const call = ++probe.digestCalls;
+        try {
+          if (probe.delay || probe.delayCall === call) {
+            const rejectDelayed = probe.rejectDelayed;
+            probe.delay = probe.rejectDelayed = false;
+            await new Promise<void>((resolve) => {
+              probe.release = resolve;
+              probe.releases.push(resolve);
+            });
+            if (rejectDelayed) throw new Error("synthetic digest failure");
+          }
+          const result = await originalDigest(...args);
+          probe.digestCompleted++;
+          return result;
+        } finally {
+          probe.digestSettled++;
         }
-        const result = await originalDigest(...args);
-        probe.digestCompleted++;
-        return result;
       },
     });
     for (const property of ["localStorage", "sessionStorage", "indexedDB"])
@@ -90,8 +116,7 @@ async function instrument(page: Page) {
 }
 async function probe(page: Page) {
   return page.evaluate(() => {
-    const value = (window as unknown as { __foReachProbe: Probe })
-      .__foReachProbe;
+    const value = window.__foReachProbe;
     return {
       randomCalls: value.randomCalls,
       storageCalls: value.storageCalls,
@@ -108,6 +133,198 @@ test.afterEach(async ({ page }) => {
       }
     })
     .catch(() => {});
+});
+
+for (const stage of [1, 2])
+  test(`Clear cancels generation while hash ${stage} is pending and discards its late result`, async ({
+    page,
+  }) => {
+    await instrument(page);
+    await page.goto(url);
+    await page.evaluate((call) => {
+      window.__foReachProbe.delayCall = call;
+    }, stage);
+    await page.locator("#generate").click();
+    await page.waitForFunction(() => !!window.__foReachProbe.release);
+    await expect(page.locator("#clear")).toBeEnabled();
+    await page.locator("#clear").click();
+    await expect(page.locator("#generate")).toBeEnabled();
+    await expect(page.locator("#saved")).toBeDisabled();
+    await expect(page.locator("#export")).toBeDisabled();
+    await page.evaluate(() => window.__foReachProbe.release!());
+    await page.waitForFunction(
+      (settled) => window.__foReachProbe.digestSettled === settled,
+      stage,
+    );
+    for (const id of ["owner", "mcp", "digests"])
+      await expect(page.locator(`#${id}`)).toHaveValue("");
+    await expect(page.locator("#owner")).toHaveAttribute("type", "password");
+    await expect(page.locator("#mcp")).toHaveAttribute("type", "password");
+    await expect(page.locator("#status")).toContainText("Cleared.");
+    await expect(page.locator("#error")).toBeEmpty();
+    await expect(page.locator("#export")).toBeDisabled();
+    expect(await probe(page)).toEqual({
+      randomCalls: 2,
+      storageCalls: 0,
+      networkCalls: 0,
+    });
+  });
+
+for (const rejects of [false, true])
+  test(`cancelled hash ${rejects ? "failure" : "success"} cannot alter a newer pending generation`, async ({
+    page,
+  }) => {
+    await instrument(page);
+    await page.goto(url);
+    await page.evaluate((rejectDelayed) => {
+      const p = window.__foReachProbe;
+      p.delay = true;
+      p.rejectDelayed = rejectDelayed;
+    }, rejects);
+    await page.locator("#generate").click();
+    await page.waitForFunction(
+      () => window.__foReachProbe.releases.length === 1,
+    );
+    await page.locator("#clear").click();
+    await page.evaluate(() => {
+      window.__foReachProbe.delay = true;
+    });
+    await page.locator("#generate").click();
+    await page.waitForFunction(
+      () => window.__foReachProbe.releases.length === 2,
+    );
+    await page.evaluate(() => window.__foReachProbe.releases[0]());
+    await page.waitForFunction(
+      () => window.__foReachProbe.digestSettled === 1,
+    );
+    await expect(page.locator("#generate")).toBeDisabled();
+    await expect(page.locator("#clear")).toBeEnabled();
+    await expect(page.locator("#error")).toBeEmpty();
+    await expect(page.locator("#status")).toContainText("Generating locally.");
+    await expect(page.locator("#owner")).toHaveValue("");
+    await page.evaluate(() => window.__foReachProbe.releases[1]());
+    await expect(page.locator("#saved")).toBeEnabled();
+    const expectedOwner = Buffer.from(
+      Array.from({ length: 32 }, (_, i) => i + 64),
+    ).toString("base64url");
+    const expectedMcp = Buffer.from(
+      Array.from({ length: 32 }, (_, i) => i + 96),
+    ).toString("base64url");
+    expect(
+      await page.locator("#owner").inputValue()
+        .then((value) => value === expectedOwner),
+    ).toBe(true);
+    expect(
+      await page.locator("#mcp").inputValue()
+        .then((value) => value === expectedMcp),
+    ).toBe(true);
+    await expect(page.locator("#error")).toBeEmpty();
+    await expect(page.locator("#export")).toBeDisabled();
+    expect(await probe(page)).toEqual({
+      randomCalls: 4,
+      storageCalls: 0,
+      networkCalls: 0,
+    });
+    await page.locator("#clear").click();
+  });
+
+test("a current hash failure clears pending state and permits an explicit retry", async ({ page }) => {
+  await instrument(page);
+  await page.goto(url);
+  await page.evaluate(() => {
+    window.__foReachProbe.delay = true;
+    window.__foReachProbe.rejectDelayed = true;
+  });
+  await page.locator("#generate").click();
+  await page.waitForFunction(() => !!window.__foReachProbe.release);
+  await page.evaluate(() => window.__foReachProbe.release!());
+  await expect(page.locator("#error")).toContainText("Generation failed.");
+  await expect(page.locator("#status")).toHaveText(
+    "No credentials are ready. You can try again.",
+  );
+  for (const id of ["owner", "mcp", "digests"])
+    await expect(page.locator(`#${id}`)).toHaveValue("");
+  await expect(page.locator("#generate")).toBeEnabled();
+  await expect(page.locator("#clear")).toBeDisabled();
+  await expect(page.locator("#export")).toBeDisabled();
+  await page.locator("#generate").click();
+  await expect(page.locator("#saved")).toBeEnabled();
+  await expect(page.locator("#error")).toBeEmpty();
+  await expect(page.locator("#status")).toContainText("Generated locally.");
+  expect(await probe(page)).toEqual({
+    randomCalls: 4,
+    storageCalls: 0,
+    networkCalls: 0,
+  });
+  await page.locator("#clear").click();
+});
+
+test("downloaded standalone HTML works directly with synthetic bytes where file navigation is supported", async ({
+  page,
+}) => {
+  await instrument(page);
+  let networkRequests = 0;
+  page.on("request", (request) => {
+    if (/^https?:/.test(request.url())) networkRequests++;
+  });
+  try {
+    await page.goto(fileUrl);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      /net::ERR_(?:ACCESS_DENIED|BLOCKED_BY_ADMINISTRATOR)/.test(error.message)
+    ) {
+      test.skip(
+        true,
+        "This browser's managed policy denies direct file navigation; loopback tests cover the exact file.",
+      );
+      return;
+    }
+    throw error;
+  }
+  expect(await probe(page)).toEqual({
+    randomCalls: 0,
+    storageCalls: 0,
+    networkCalls: 0,
+  });
+  await expect(page.locator("#owner")).toHaveValue("");
+  await page.locator("#generate").click();
+  await expect(page.locator("#saved")).toBeEnabled();
+  const expectedOwner = Buffer.from(
+    Array.from({ length: 32 }, (_, i) => i),
+  ).toString("base64url");
+  const expectedMcp = Buffer.from(
+    Array.from({ length: 32 }, (_, i) => i + 32),
+  ).toString("base64url");
+  const expectedDigests = `FO_FIX_OWNER_TOKEN_SHA256=${createHash("sha256").update(expectedOwner).digest("hex")}\nFO_FIX_MCP_TOKEN_SHA256=${createHash("sha256").update(expectedMcp).digest("hex")}\n`;
+  expect(
+    await page.locator("#owner").inputValue()
+      .then((value) => value === expectedOwner),
+  ).toBe(true);
+  expect(
+    await page.locator("#mcp").inputValue()
+      .then((value) => value === expectedMcp),
+  ).toBe(true);
+  await expect(page.locator("#owner")).toHaveAttribute("type", "password");
+  await expect(page.locator("#mcp")).toHaveAttribute("type", "password");
+  await page.locator("#saved").check();
+  const exported = page.waitForEvent("download");
+  await page.locator("#export").click();
+  const contents = await readFile((await (await exported).path())!, "utf8");
+  expect(
+    contents === expectedDigests &&
+      !contents.includes(expectedOwner) &&
+      !contents.includes(expectedMcp),
+  ).toBe(true);
+  await page.locator("#clear").click();
+  for (const id of ["owner", "mcp", "digests"])
+    await expect(page.locator(`#${id}`)).toHaveValue("");
+  expect(await probe(page)).toEqual({
+    randomCalls: 2,
+    storageCalls: 0,
+    networkCalls: 0,
+  });
+  expect(networkRequests).toBe(0);
 });
 
 test("offline click-only generation hashes exact synthetic strings, masks values and exports only digests without network/storage", async ({
@@ -199,31 +416,34 @@ test("helper fails closed on entropy failure and discards generation finishing a
   await instrument(page);
   await page.goto(url);
   await page.evaluate(() => {
-    (window as unknown as { __foReachProbe: Probe }).__foReachProbe.fail = true;
+    window.__foReachProbe.fail = true;
   });
   await page.locator("#generate").click();
   await expect(page.locator("#error")).toContainText("Generation failed");
+  await expect(page.locator("#status")).toHaveText(
+    "No credentials are ready. You can try again.",
+  );
   await expect(page.locator("#owner")).toHaveValue("");
   await expect(page.locator("#export")).toBeDisabled();
   await page.evaluate(() => {
-    const p = (window as unknown as { __foReachProbe: Probe }).__foReachProbe;
+    const p = window.__foReachProbe;
     p.fail = false;
     p.delay = true;
   });
   await page.locator("#generate").click();
   await page.waitForFunction(
     () =>
-      !!(window as unknown as { __foReachProbe: Probe }).__foReachProbe.release,
+      !!window.__foReachProbe.release,
   );
   await page.evaluate(() => {
     window.dispatchEvent(new Event("pagehide"));
-    (window as unknown as { __foReachProbe: Probe }).__foReachProbe.release!();
+    window.__foReachProbe.release!();
   });
   await expect(page.locator("#generate")).toBeEnabled();
   await page.waitForFunction(
     () =>
-      (window as unknown as { __foReachProbe: Probe }).__foReachProbe
-        .digestCompleted === 2,
+      window.__foReachProbe
+        .digestCompleted === 1,
   );
   await expect(page.locator("#owner")).toHaveValue("");
   await expect(page.locator("#mcp")).toHaveValue("");

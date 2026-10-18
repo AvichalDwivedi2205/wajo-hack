@@ -15,7 +15,7 @@ dist/index.html                   0.66 kB │ gzip:  0.40 kB
 dist/assets/index-wQZk2SbU.css   30.34 kB │ gzip:  6.94 kB
 dist/assets/index-08nt8AuJ.js   261.25 kB │ gzip: 80.84 kB
 
-✓ built in 354ms
+✓ built in 167ms
 npm notice
 npm notice New major version of npm available! 11.9.0 -> 12.2.0
 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
@@ -25,76 +25,76 @@ npm notice
 > fo-fix@0.1.0 test
 > tsx --test tests/*.test.ts
 
-✔ human permission endpoint requires exact local Origin; foreign Host and Origin rejected (48.853283ms)
-✔ API validates strict schema and rejects arbitrary commands (14.564829ms)
-✔ oversized requests are rejected without echoing input or taking down the companion (6.727571ms)
-✔ HTTP approval cannot be spoofed through execute arguments or missing local review Origin (21.676707ms)
-✔ real MCP SDK client lists bounded tools; no grant, approve, terminal or security tools exist (72.792165ms)
-✔ MCP proposal cannot execute until human review; verification and history are shared (32.596182ms)
-✔ stdio bridge speaks MCP and shares the running companion rather than creating independent approvals (402.949526ms)
-✔ deployment deadline is returned only to the authenticated owner and bounds the session (53.982988ms)
-✔ explicit bearer configuration needs no OAuth provider and rejects shared credentials, unbounded proxy trust and missing or excessive expiry (0.638028ms)
-✔ Fo-style explicit bearer MCP cannot sign in or approve; separate owner cookie plus CSRF enables verified fixture repair and separately approved undo (98.495922ms)
-✔ bearer access fails closed for query credentials, foreign origins, owner-session expiry, deployment expiry and rate-limited login guesses (19.657868ms)
-✔ exact trusted proxy allowlist rejects nonproxy peers and spoofed forwarding headers while preserving Host and Origin checks (18.342985ms)
-✔ a separate companion bearer authenticates only device relay; even cloud owner sessions cannot grant or approve device operations (11.810927ms)
-✔ remote mode fails closed without complete identity, HTTPS and isolated-client configuration (2.449334ms)
-✔ diagnostics disclose presence and fixed issue messages without values or model calls (0.296364ms)
-✔ the real remote entry point refuses missing identity before creating a journal or listener (389.77971ms)
-✔ optional network diagnostics use fixed unauthenticated HEAD probes and sanitize proxy failures (17.177838ms)
-✔ offline helper is self-contained, CSP-pinned and denies network/form submission (1.233009ms)
-✔ offline helper has no network/storage/telemetry APIs or implicit generation handler (0.454933ms)
-✔ oauth: authenticated remote MCP relay preserves local inspection consent, exact approval, verification and separately approved undo (330.666872ms)
-✔ bearer: authenticated remote MCP relay preserves local inspection consent, exact approval, verification and separately approved undo (194.261839ms)
-✔ session delivery is single-use, duplicate results are idempotent and expired sessions cannot reconnect automatically (1.355053ms)
-✔ a delivered execution timeout is uncertain and is never redelivered (26.342385ms)
-✔ malformed companion results settle the original request instead of orphaning it (0.994832ms)
-✔ bridge does not start a delivered approved execution after deadline during its long poll (13.631899ms)
-✔ bridge does not start a delivered approved execution after cancellation during its long poll (11.881674ms)
-✔ device bridge rejects owner/terminal commands supplied by a gateway before calling the local MCP client (12.135003ms)
-✔ agent history stays bounded as the full local journal grows (100.310774ms)
-✔ inspection and proposals require a temporary permission lease (0.863936ms)
-✔ fixture repair verifies a fresh read and undo restores the original state with separate approval (2.162453ms)
-✔ execution without approval and after denial cannot change state (0.778588ms)
-✔ approval is bound to exact digest and expires (0.514942ms)
-✔ approved plans also expire before execution (0.56721ms)
-✔ revocation invalidates approvals and blocks future reads (0.815704ms)
-✔ lease expiry blocks writes despite earlier approval (0.449755ms)
-✔ revocation while native pre-write inspection is in flight prevents the write (0.749985ms)
-✔ revocation while native inspection is in flight prevents returning state (0.575643ms)
-✔ device drift before approval and after approval fails closed (0.758408ms)
-✔ concurrent replay executes at most once (0.758318ms)
-✔ undo refuses to overwrite a newer external setting (0.710446ms)
-✔ verification failure is reported and no automatic retry occurs (0.689795ms)
-✔ adapter error after partial write stays uncertain, journaled, and non-replayable (0.670506ms)
-✔ unmute is scoped to active output and undo restores its prior mute state (1.124918ms)
-✔ unsupported or unavailable controls do not produce a plan (0.40008ms)
-✔ history persists; interrupted writes become uncertain; access and approvals do not survive restart (2.177827ms)
-✔ two companion processes cannot keep separate mutable copies of one journal (1008.544095ms)
-✔ declining an approved plan interrupts its pre-write read instead of waiting behind execution (0.942294ms)
-✔ declining a plan interrupts an in-flight approval check (0.508553ms)
-✔ revoking and regranting permission cannot revive an old in-flight read or proposal (0.75286ms)
-✔ approval and execution deadlines are checked again after asynchronous inspection (0.838939ms)
-✔ every write retires other approvals so identical later state cannot revive them (0.88607ms)
-✔ replacing an inspection lease invalidates pending and approved plans (0.58037ms)
-✔ shutdown cancels a pre-write read and refuses new permission grants (0.658588ms)
-✔ shutdown waits for an already-started write to verify and journal its result (0.924938ms)
-✔ state revision is independent of device and object-property ordering (0.308674ms)
-✔ agent history is withheld after revocation while the local human journal remains available (1.25983ms)
-✔ SIGTERM gracefully persists revocation, invalidates pending plans and releases the real server journal (443.112233ms)
-✔ oversized MCP evidence returns a bounded error without losing subsequent status or local evidence (34.119873ms)
-✔ native wire contract preserves mute capability: undefined (2.267692ms)
-✔ native wire contract preserves mute capability: null (0.365749ms)
-✔ native wire contract preserves mute capability: false (0.115103ms)
-✔ native wire contract preserves mute capability: true (0.093651ms)
-✔ native wire contract rejects ambiguous mute values and unrecognized fields (1.245138ms)
-✔ missing native mute capability remains inspectable but cannot authorize a mute repair (2.684718ms)
-✔ remote MCP validates signed access tokens, audience, client, subject, scope, type and expiry (16.426121ms)
-✔ remote startup rejects anonymous MCP and owner API; protected-resource discovery remains public (27.731319ms)
-✔ owner PKCE session and CSRF protect grants and approvals; MCP bearer cannot become owner (88.973103ms)
-✔ login callback state is cookie-bound, single-use and cannot exchange an MCP token for an owner session (10.162263ms)
-✔ owner sessions expire and owner/companion tokens are rejected by MCP (8.714293ms)
-✔ remote JWKS verification reads only the pinned HTTPS key endpoint with bounded responses and no redirect following (2.288092ms)
+✔ human permission endpoint requires exact local Origin; foreign Host and Origin rejected (55.653453ms)
+✔ API validates strict schema and rejects arbitrary commands (18.890439ms)
+✔ oversized requests are rejected without echoing input or taking down the companion (10.232432ms)
+✔ HTTP approval cannot be spoofed through execute arguments or missing local review Origin (28.112402ms)
+✔ real MCP SDK client lists bounded tools; no grant, approve, terminal or security tools exist (72.840138ms)
+✔ MCP proposal cannot execute until human review; verification and history are shared (41.986462ms)
+✔ stdio bridge speaks MCP and shares the running companion rather than creating independent approvals (420.677311ms)
+✔ deployment deadline is returned only to the authenticated owner and bounds the session (52.867574ms)
+✔ explicit bearer configuration needs no OAuth provider and rejects shared credentials, unbounded proxy trust and missing or excessive expiry (0.730754ms)
+✔ Fo-style explicit bearer MCP cannot sign in or approve; separate owner cookie plus CSRF enables verified fixture repair and separately approved undo (111.778019ms)
+✔ bearer access fails closed for query credentials, foreign origins, owner-session expiry, deployment expiry and rate-limited login guesses (28.486908ms)
+✔ exact trusted proxy allowlist rejects nonproxy peers and spoofed forwarding headers while preserving Host and Origin checks (9.804063ms)
+✔ a separate companion bearer authenticates only device relay; even cloud owner sessions cannot grant or approve device operations (12.204832ms)
+✔ remote mode fails closed without complete identity, HTTPS and isolated-client configuration (2.960232ms)
+✔ diagnostics disclose presence and fixed issue messages without values or model calls (0.961153ms)
+✔ the real remote entry point refuses missing identity before creating a journal or listener (491.723442ms)
+✔ optional network diagnostics use fixed unauthenticated HEAD probes and sanitize proxy failures (20.57125ms)
+✔ offline helper is self-contained, CSP-pinned and denies network/form submission (1.074299ms)
+✔ offline helper has no network/storage/telemetry APIs or implicit generation handler (0.272631ms)
+✔ oauth: authenticated remote MCP relay preserves local inspection consent, exact approval, verification and separately approved undo (353.217407ms)
+✔ bearer: authenticated remote MCP relay preserves local inspection consent, exact approval, verification and separately approved undo (178.329003ms)
+✔ session delivery is single-use, duplicate results are idempotent and expired sessions cannot reconnect automatically (1.369723ms)
+✔ a delivered execution timeout is uncertain and is never redelivered (25.234486ms)
+✔ malformed companion results settle the original request instead of orphaning it (1.233554ms)
+✔ bridge does not start a delivered approved execution after deadline during its long poll (11.318869ms)
+✔ bridge does not start a delivered approved execution after cancellation during its long poll (10.872073ms)
+✔ device bridge rejects owner/terminal commands supplied by a gateway before calling the local MCP client (10.202509ms)
+✔ agent history stays bounded as the full local journal grows (143.731557ms)
+✔ inspection and proposals require a temporary permission lease (0.882166ms)
+✔ fixture repair verifies a fresh read and undo restores the original state with separate approval (2.079316ms)
+✔ execution without approval and after denial cannot change state (0.702432ms)
+✔ approval is bound to exact digest and expires (0.724695ms)
+✔ approved plans also expire before execution (0.530069ms)
+✔ revocation invalidates approvals and blocks future reads (0.717174ms)
+✔ lease expiry blocks writes despite earlier approval (0.490631ms)
+✔ revocation while native pre-write inspection is in flight prevents the write (0.712167ms)
+✔ revocation while native inspection is in flight prevents returning state (0.56497ms)
+✔ device drift before approval and after approval fails closed (1.003555ms)
+✔ concurrent replay executes at most once (2.711906ms)
+✔ undo refuses to overwrite a newer external setting (0.727049ms)
+✔ verification failure is reported and no automatic retry occurs (1.032027ms)
+✔ adapter error after partial write stays uncertain, journaled, and non-replayable (0.735782ms)
+✔ unmute is scoped to active output and undo restores its prior mute state (1.541847ms)
+✔ unsupported or unavailable controls do not produce a plan (0.426267ms)
+✔ history persists; interrupted writes become uncertain; access and approvals do not survive restart (2.327071ms)
+✔ two companion processes cannot keep separate mutable copies of one journal (1014.14096ms)
+✔ declining an approved plan interrupts its pre-write read instead of waiting behind execution (1.103141ms)
+✔ declining a plan interrupts an in-flight approval check (0.596947ms)
+✔ revoking and regranting permission cannot revive an old in-flight read or proposal (0.867205ms)
+✔ approval and execution deadlines are checked again after asynchronous inspection (0.755912ms)
+✔ every write retires other approvals so identical later state cannot revive them (0.996264ms)
+✔ replacing an inspection lease invalidates pending and approved plans (0.577409ms)
+✔ shutdown cancels a pre-write read and refuses new permission grants (0.657527ms)
+✔ shutdown waits for an already-started write to verify and journal its result (0.860795ms)
+✔ state revision is independent of device and object-property ordering (0.306931ms)
+✔ agent history is withheld after revocation while the local human journal remains available (1.146595ms)
+✔ SIGTERM gracefully persists revocation, invalidates pending plans and releases the real server journal (422.295549ms)
+✔ oversized MCP evidence returns a bounded error without losing subsequent status or local evidence (35.994493ms)
+✔ native wire contract preserves mute capability: undefined (2.349353ms)
+✔ native wire contract preserves mute capability: null (0.24467ms)
+✔ native wire contract preserves mute capability: false (0.215006ms)
+✔ native wire contract preserves mute capability: true (0.103422ms)
+✔ native wire contract rejects ambiguous mute values and unrecognized fields (0.966651ms)
+✔ missing native mute capability remains inspectable but cannot authorize a mute repair (2.869829ms)
+✔ remote MCP validates signed access tokens, audience, client, subject, scope, type and expiry (16.839374ms)
+✔ remote startup rejects anonymous MCP and owner API; protected-resource discovery remains public (32.086709ms)
+✔ owner PKCE session and CSRF protect grants and approvals; MCP bearer cannot become owner (76.367023ms)
+✔ login callback state is cookie-bound, single-use and cannot exchange an MCP token for an owner session (10.222447ms)
+✔ owner sessions expire and owner/companion tokens are rejected by MCP (8.503ms)
+✔ remote JWKS verification reads only the pinned HTTPS key endpoint with bounded responses and no redirect following (1.946101ms)
 ℹ tests 70
 ℹ suites 0
 ℹ pass 70
@@ -102,7 +102,7 @@ npm notice
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 2398.742199
+ℹ duration_ms 2465.896731
 npm notice
 npm notice New major version of npm available! 11.9.0 -> 12.2.0
 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
@@ -112,36 +112,43 @@ npm notice
 > fo-fix@0.1.0 test:e2e
 > playwright test
 
-[WebServer] (node:25418) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (node:7383) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
-[WebServer] (node:25431) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (node:7396) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
 [WebServer] Fo Fix: http://127.0.0.1:4318 · SYNTHETIC FIXTURE — no real device attached · local mode · MCP /mcp
 
-Running 16 tests using 1 worker
+Running 22 tests using 1 worker
 
-(node:25439) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:7404) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-  ✓   1 tests/browser/offline-credentials.spec.ts:113:1 › offline click-only generation hashes exact synthetic strings, masks values and exports only digests without network/storage (480ms)
-  ✓   2 tests/browser/offline-credentials.spec.ts:196:1 › helper fails closed on entropy failure and discards generation finishing after pagehide (278ms)
-(node:25604) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+  ✓   1 tests/browser/offline-credentials.spec.ts:139:3 › Clear cancels generation while hash 1 is pending and discards its late result (360ms)
+  ✓   2 tests/browser/offline-credentials.spec.ts:139:3 › Clear cancels generation while hash 2 is pending and discards its late result (329ms)
+  ✓   3 tests/browser/offline-credentials.spec.ts:174:3 › cancelled hash success cannot alter a newer pending generation (397ms)
+  ✓   4 tests/browser/offline-credentials.spec.ts:174:3 › cancelled hash failure cannot alter a newer pending generation (387ms)
+  ✓   5 tests/browser/offline-credentials.spec.ts:231:1 › a current hash failure clears pending state and permits an explicit retry (372ms)
+  -   6 tests/browser/offline-credentials.spec.ts:262:1 › downloaded standalone HTML works directly with synthetic bytes where file navigation is supported
+  ✓   7 tests/browser/offline-credentials.spec.ts:330:1 › offline click-only generation hashes exact synthetic strings, masks values and exports only digests without network/storage (459ms)
+  ✓   8 tests/browser/offline-credentials.spec.ts:413:1 › helper fails closed on entropy failure and discards generation finishing after pagehide (315ms)
+(node:7764) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-  ✓   3 tests/browser/repair.spec.ts:14:1 › fixture repair, reload-persisted history, separately approved undo, denial, and revocation (1.7s)
-  ✓   4 tests/browser/repair.spec.ts:92:1 › mobile layout has no horizontal overflow and integration is candid (373ms)
-  ✓   5 tests/browser/repair.spec.ts:123:1 › all main screens pass automated WCAG A/AA checks; review dialog traps keyboard focus (3.7s)
-  ✓   6 tests/browser/repair.spec.ts:175:1 › an MCP execution updates the open browser even when the browser lost its execute response (2.7s)
-  ✓   7 tests/browser/repair.spec.ts:238:1 › remote owner sign-in has no credential input and begins only the configured HTTPS authorization navigation (404ms)
-  ✓   8 tests/browser/repair.spec.ts:268:1 › cloud device-session interface never offers device permission grants or approval controls (425ms)
-  ✓   9 tests/browser/repair.spec.ts:313:1 › bearer profile uses a separate masked owner form and keeps the credential out of browser storage (466ms)
-  ✓  10 tests/browser/repair.spec.ts:363:3 › bearer: an existing owner session can sign out and sign in again without reloading (390ms)
-  ✓  11 tests/browser/repair.spec.ts:363:3 › oauth: an existing owner session can sign out and sign in again without reloading (374ms)
-  ✓  12 tests/browser/repair.spec.ts:397:3 › redacted history preserves the recorded count and never claims an empty journal (430ms)
-  ✓  13 tests/browser/repair.spec.ts:397:3 › truncated history preserves the recorded count and never claims an empty journal (458ms)
-  ✓  14 tests/browser/repair.spec.ts:442:1 › a maximum-length unbroken synthetic device name wraps inside a mobile approval dialog (641ms)
-  ✓  15 tests/browser/repair.spec.ts:485:1 › Fo can execute only after approval-only review, with delayed polling, reload, separate undo and revocation (9.5s)
-  ✓  16 tests/browser/repair.spec.ts:629:1 › authenticated bearer owner sees exact UTC session and deployment deadlines with unknown account evidence (418ms)
+  ✓   9 tests/browser/repair.spec.ts:14:1 › fixture repair, reload-persisted history, separately approved undo, denial, and revocation (1.7s)
+  ✓  10 tests/browser/repair.spec.ts:92:1 › mobile layout has no horizontal overflow and integration is candid (399ms)
+  ✓  11 tests/browser/repair.spec.ts:123:1 › all main screens pass automated WCAG A/AA checks; review dialog traps keyboard focus (3.5s)
+  ✓  12 tests/browser/repair.spec.ts:175:1 › an MCP execution updates the open browser even when the browser lost its execute response (2.7s)
+  ✓  13 tests/browser/repair.spec.ts:238:1 › remote owner sign-in has no credential input and begins only the configured HTTPS authorization navigation (404ms)
+  ✓  14 tests/browser/repair.spec.ts:268:1 › cloud device-session interface never offers device permission grants or approval controls (457ms)
+  ✓  15 tests/browser/repair.spec.ts:313:1 › bearer profile uses a separate masked owner form and keeps the credential out of browser storage (490ms)
+  ✓  16 tests/browser/repair.spec.ts:363:3 › bearer: an existing owner session can sign out and sign in again without reloading (404ms)
+  ✓  17 tests/browser/repair.spec.ts:363:3 › oauth: an existing owner session can sign out and sign in again without reloading (427ms)
+  ✓  18 tests/browser/repair.spec.ts:397:3 › redacted history preserves the recorded count and never claims an empty journal (415ms)
+  ✓  19 tests/browser/repair.spec.ts:397:3 › truncated history preserves the recorded count and never claims an empty journal (412ms)
+  ✓  20 tests/browser/repair.spec.ts:442:1 › a maximum-length unbroken synthetic device name wraps inside a mobile approval dialog (661ms)
+  ✓  21 tests/browser/repair.spec.ts:485:1 › Fo can execute only after approval-only review, with delayed polling, reload, separate undo and revocation (9.4s)
+  ✓  22 tests/browser/repair.spec.ts:629:1 › authenticated bearer owner sees exact UTC session and deployment deadlines with unknown account evidence (486ms)
 
-  16 passed (25.4s)
+  1 skipped
+  21 passed (27.5s)
 npm notice
 npm notice New major version of npm available! 11.9.0 -> 12.2.0
 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0

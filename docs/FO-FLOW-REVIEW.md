@@ -1,5 +1,7 @@
 # Fo execution and private credential handoff review — 2026-10-18
 
+The follow-up [Clear cancellation review](CLEAR-CANCELLATION-REVIEW.md) records the additional reset fix and current test results. Results below describe this original approval-flow pass.
+
 This change builds on public initial commit `d308ee0465dc1cdde9b8ef90995f23797e1b0879`. It adds approval-only repair/undo review for Fo, protected owner deadline display, evidence-based integration wording and the standalone offline credential helper. No application dependency, authority, credential or deployment configuration was added or changed by this code/test pass. Actual hardware and live Fo remain unverified.
 
 ## Behavior and boundaries
