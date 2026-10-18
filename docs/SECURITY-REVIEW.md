@@ -1,6 +1,6 @@
 # Security review — 2026-10-18
 
-The latest independent review and boundary regressions are recorded in [Fo Reach version 4 review](REVIEW-2026-10-18.md).
+The latest independent review covers [Fo execution and credential handoff](FO-FLOW-REVIEW.md). Earlier boundary findings are preserved in [Fo Reach version 4 review](REVIEW-2026-10-18.md).
 
 ## Bearer compatibility correction
 

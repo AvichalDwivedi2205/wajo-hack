@@ -2,6 +2,8 @@
 
 **Code verified with synthetic credentials/devices; not live deployment-ready or Fo-connected.** No host, credentials, account clients, persistent access or registration were created. The earlier mandatory external-OAuth assumption was unjustified and has been corrected. The bounded hackathon path uses Fo's explicitly advertised static-bearer connection mode, with an independent protected owner interface. OAuth remains an optional advanced profile.
 
+For the offline digest-only helper, exact configuration approval, approval-only Fo execution and native-pairing boundaries, follow [user-controlled credential handoff](CREDENTIAL-HANDOFF.md).
+
 ## Minimal single-owner bearer configuration
 
 Use [remote.env.example](../deploy/remote.env.example). No file loads automatically. Supply approved values through the host environment; never commit a populated file.
@@ -43,7 +45,7 @@ Choose one explicit proxy arrangement:
 - **Conventional private upstream:** set `FO_FIX_LISTEN_HOST=0.0.0.0`, `FO_FIX_TRUST_PROXY=addresses` and `FO_FIX_PROXY_ADDRESSES` to at most 16 verified exact source IPs of the approved TLS proxy. No CIDR, hop count, wildcard, hostname or unspecified address is accepted. The socket peer, not a caller-supplied forwarded address, is checked. Restrict upstream network access to the proxy too. [host.env.example](../deploy/host.env.example) records this contract.
 - **Same-host/namespace TLS proxy:** retain `FO_FIX_LISTEN_HOST=127.0.0.1`, `FO_FIX_TRUST_PROXY=loopback`, and omit `FO_FIX_PROXY_ADDRESSES`. Use [nginx.conf.example](../deploy/nginx.conf.example). Its TLS certificate and hostname must be existing approved resources. A container needs the proxy in the same network namespace in this profile.
 
-In both cases the proxy must overwrite `Host` with the exact configured origin host[:port] and `X-Forwarded-Proto` with exactly `https`, preserve Authorization/cookies, disable buffering, and allow at least 40-second request/response timeouts. Foreign Host/Origin and cross-site owner mutations still fail. Do not log Authorization, cookies, bodies, OAuth query strings or credentials. Health checks must traverse the same trusted proxy with these Host/HTTPS headers, or use a TCP probe; a direct unauthenticated HTTP probe is rejected. No broad Express proxy trust is enabled. If a platform cannot provide a trusted bounded peer set or a suitable same-host TLS arrangement, compatibility has not been established; do not weaken these checks or buy hosting on an assumption.
+In both cases the proxy must preserve the incoming `Host` for exact configured-origin validation and overwrite `X-Forwarded-Proto` with exactly `https`, preserve Authorization/cookies, disable buffering, and allow at least 40-second request/response timeouts. Foreign Host/Origin and cross-site owner mutations still fail. Do not log Authorization, cookies, bodies, OAuth query strings or credentials. Health checks must traverse the same trusted proxy with these Host/HTTPS headers, or use a TCP probe; a direct unauthenticated HTTP probe is rejected. No broad Express proxy trust is enabled. If a platform cannot provide a trusted bounded peer set or a suitable same-host TLS arrangement, compatibility has not been established; do not weaken these checks or buy hosting on an assumption.
 
 The [Dockerfile](../Dockerfile) supports these runtime-selected profiles but has not been image-built or deployed. One long-running process/replica is supported. Owner sessions and gateway queues are in memory; fixture SQLite uses lifetime exclusive locking and a private writable persistent directory, including its rollback journal. No autoscaling, independent replicas, scale-to-zero, ephemeral fixture-history persistence or transactional multi-instance claims are made. Allow graceful SIGTERM shutdown before replacing the process.
 
@@ -57,7 +59,7 @@ A reviewable registration request is:
 
 ```json
 {
-  "serverName": "Fo Fix",
+  "serverName": "Fo Reach",
   "url": "https://<approved-host>/mcp",
   "transport": "streamable_http",
   "auth": "bearer",

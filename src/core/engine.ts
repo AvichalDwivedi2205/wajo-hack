@@ -116,9 +116,9 @@ export class Engine {
         "undo",
       ],
       fo: {
-        connected: false,
+        connected: null,
         status:
-          "Registration not configured; Fo account integration is unverified.",
+          "Fo registration is managed in Wajo. Confirm this connection with a successful live Fo tool call; this companion cannot verify the account registration.",
       },
       history: {
         redacted,

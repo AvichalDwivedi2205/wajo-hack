@@ -71,7 +71,7 @@ export type AppStatus = {
   lifecycle: "ready" | "stopping";
   permission: { active: boolean; expiresAt?: string; scope: string };
   capabilities: string[];
-  fo: { connected: false; status: string };
+  fo: { connected: null; status: string };
   history: {
     redacted: boolean;
     truncated?: boolean;

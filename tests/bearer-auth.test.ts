@@ -80,6 +80,30 @@ async function fixture(session = false, addresses = ["127.0.0.1", "::1"]) {
   return { ...app, identity, config, login, broker };
 }
 
+test("deployment deadline is returned only to the authenticated owner and bounds the session", async () => {
+  const app = await fixture();
+  try {
+    const anonymous = await app.request("/api/auth");
+    assert.equal(anonymous.status, 401);
+    assert.equal(Object.hasOwn(anonymous.json(), "deploymentExpiresAt"), false);
+    const method = await app.request("/owner/auth/method");
+    assert.deepEqual(method.json(), { method: "bearer" });
+    const owner = await app.login();
+    const auth = await app.request("/api/auth", {
+      headers: { Cookie: owner.cookie },
+    });
+    assert.equal(auth.json().deploymentExpiresAt, app.config.accessExpiresAt);
+    assert.ok(auth.json().expiresAt <= app.config.accessExpiresAt);
+    const mcp = await app.request("/api/auth", {
+      headers: { Authorization: `Bearer ${tokens.mcp}` },
+    });
+    assert.equal(mcp.status, 401);
+    assert.equal(Object.hasOwn(mcp.json(), "deploymentExpiresAt"), false);
+  } finally {
+    await app.close();
+  }
+});
+
 test("explicit bearer configuration needs no OAuth provider and rejects shared credentials, unbounded proxy trust and missing or excessive expiry", () => {
   const env = environment();
   assert.equal(checkConfig(env).issues.length, 0);

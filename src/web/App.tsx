@@ -30,6 +30,11 @@ import {
 import type { Action, AppStatus, Plan, Snapshot } from "../shared/types.ts";
 
 type View = "workspace" | "history" | "permissions" | "connection";
+type BrowserAuth = {
+  csrfToken?: string;
+  expiresAt?: number;
+  deploymentExpiresAt?: number;
+};
 let csrfToken: string | undefined;
 class SignInRequired extends Error {}
 async function api<T>(
@@ -70,6 +75,9 @@ function time(value: string) {
     minute: "2-digit",
   });
 }
+function utc(value: number) {
+  return new Date(value).toISOString().replace("T", " ").replace("Z", " UTC");
+}
 
 export function App() {
   const [authState, setAuthState] = useState<
@@ -77,6 +85,7 @@ export function App() {
   >("checking");
   const [authMethod, setAuthMethod] = useState<"bearer" | "oauth">();
   const [ownerCredential, setOwnerCredential] = useState("");
+  const [ownerAccess, setOwnerAccess] = useState<BrowserAuth>({});
   const [status, setStatus] = useState<AppStatus>();
   const [snapshot, setSnapshot] = useState<Snapshot>();
   const [view, setView] = useState<View>("workspace");
@@ -94,9 +103,11 @@ export function App() {
   const refreshSequence = useRef(0);
   const appliedRefresh = useRef(0);
   const seenActions = useRef<Set<string> | null>(null);
+  const retiredPlans = useRef(new Set<string>());
   useEffect(() => {
     const required = async () => {
       setPlan(undefined);
+      setOwnerAccess({});
       setOffline(false);
       setAuthState("checking");
       try {
@@ -121,6 +132,7 @@ export function App() {
         if (!response.ok) throw new Error();
         const auth = await response.json();
         csrfToken = auth.csrfToken;
+        setOwnerAccess(auth);
         setAuthState(auth.mode === "remote" ? "remote" : "local");
       })
       .catch(() => {
@@ -193,6 +205,7 @@ export function App() {
     if (!plan) {
       const next = status?.plans.find(
         (p) =>
+          !retiredPlans.current.has(p.id) &&
           (p.status === "pending" || p.status === "approved") &&
           Date.parse(p.expiresAt) > now,
       );
@@ -205,8 +218,11 @@ export function App() {
       if (
         current &&
         (current.status === "denied" || current.status === "consumed")
-      )
+      ) {
+        retiredPlans.current.add(current.id);
         setPlan(undefined);
+      } else if (current?.status === "approved" && plan.status === "pending")
+        setPlan(current);
     }
   }, [status, plan, now]);
   useEffect(() => {
@@ -290,9 +306,10 @@ export function App() {
     await refresh();
   }
   async function apply() {
-    if (!plan || !approved) return;
+    if (!plan || (!approved && !planApproved)) return;
     const selectedPlan = plan;
     if (
+      selectedPlan.status !== "approved" &&
       status?.plans.find((p) => p.id === selectedPlan.id)?.status !== "approved"
     ) {
       await api(`plans/${selectedPlan.id}/approve`, {
@@ -300,11 +317,22 @@ export function App() {
       });
     }
     const action = await api<Action>(`plans/${selectedPlan.id}/execute`);
+    retiredPlans.current.add(selectedPlan.id);
     setPlan(undefined);
     setResult(action);
     setApproved(false);
     if (action.after) setSnapshot(action.after);
     await refresh();
+  }
+  async function approveForFo() {
+    if (!plan || !approved) return;
+    const next = await api<Plan>(`plans/${plan.id}/approve`, {
+      digest: plan.digest,
+    });
+    setPlan(next);
+    setApproved(false);
+    // A slow status poll must not keep the now-live approval's revoke controls busy.
+    void refresh().catch(() => {});
   }
   async function undo(action: Action) {
     const next = await api<Plan>(`actions/${action.id}/undo`);
@@ -313,10 +341,20 @@ export function App() {
     setResult(undefined);
     await refresh();
   }
+  async function decline() {
+    if (!plan) return;
+    const id = plan.id;
+    await api(`plans/${id}/deny`);
+    retiredPlans.current.add(id);
+    setPlan(undefined);
+    setApproved(false);
+    void refresh().catch(() => {});
+  }
   const fixture = status?.mode === "fixture";
   const unavailable = !status || status.mode === "unavailable";
   const localAuthority = status?.approvalAuthority !== "companion";
   const permitted = status?.permission.active && !offline;
+  const planApproved = plan?.status === "approved";
   const active = snapshot?.devices.find((d) => d.id === snapshot.outputId);
   const expiry = plan
     ? Math.max(
@@ -378,12 +416,13 @@ export function App() {
                       throw new Error(
                         "Owner sign-in failed. Check your separate owner credential and access window.",
                       );
-                    const auth = await api<{ csrfToken: string }>(
+                    const auth = await api<BrowserAuth>(
                       "auth",
                       undefined,
                       "GET",
                     );
                     csrfToken = auth.csrfToken;
+                    setOwnerAccess(auth);
                     setAuthState("remote");
                   } finally {
                     setOwnerCredential("");
@@ -544,7 +583,7 @@ export function App() {
             onClick={() => setView("connection")}
           >
             <span className="dot amber" />
-            Fo integration pending
+            Fo connection details
             <Link2 size={13} />
           </button>
           {authState === "remote" && (
@@ -559,6 +598,7 @@ export function App() {
                   setResult(undefined);
                   setPlan(undefined);
                   seenActions.current = null;
+                  retiredPlans.current.clear();
                   window.dispatchEvent(new Event("fofix-auth-required"));
                 })
               }
@@ -568,6 +608,32 @@ export function App() {
           )}
         </header>
         <main>
+          {authState === "remote" && ownerAccess.expiresAt && (
+            <div className="access-window" role="status">
+              <Clock3 size={16} aria-hidden="true" />
+              <div>
+                Owner session ends{" "}
+                <time dateTime={new Date(ownerAccess.expiresAt).toISOString()}>
+                  {utc(ownerAccess.expiresAt)}
+                </time>
+                .
+                {ownerAccess.deploymentExpiresAt && (
+                  <>
+                    {" "}
+                    Deployment access ends{" "}
+                    <time
+                      dateTime={new Date(
+                        ownerAccess.deploymentExpiresAt,
+                      ).toISOString()}
+                    >
+                      {utc(ownerAccess.deploymentExpiresAt)}
+                    </time>
+                    . No automatic renewal.
+                  </>
+                )}
+              </div>
+            </div>
+          )}
           <div className="environment-banner">
             <span>
               <Info size={15} />
@@ -1303,8 +1369,8 @@ export function App() {
                 <span>With a local boundary.</span>
               </h1>
               <p className="intro-copy">
-                Fo is the intended orchestrator. This build provides a working
-                MCP service; live account registration remains unconfigured.
+                Fo orchestrates through the MCP service. Account registration is
+                managed in Wajo; verify the connection with a live Fo tool call.
               </p>
               <div className="connection-flow">
                 <div>
@@ -1313,7 +1379,7 @@ export function App() {
                   <small>Orchestrate & explain</small>
                 </div>
                 <span className="pending-link">
-                  Pending
+                  Verify in Wajo
                   <Link2 size={22} />
                 </span>
                 <div>
@@ -1338,7 +1404,7 @@ export function App() {
                       custom companion connection.
                     </p>
                   </div>
-                  <span className="status-pill">Not connected</span>
+                  <span className="status-pill">Account state unknown</span>
                 </div>
                 <div className="integration-details">
                   <div>
@@ -1350,11 +1416,13 @@ export function App() {
                     </p>
                   </div>
                   <div>
-                    <strong>Still needs verification</strong>
+                    <strong>Verify your connection</strong>
                     <p>
-                      Fo account authorization and personal-scope registration
-                      of the approved HTTPS MCP endpoint. No account connection
-                      has been created by this build.
+                      In Wajo, confirm personal-scope registration of this HTTPS
+                      MCP endpoint, then ask Fo to read companion status. A
+                      successful tool call verifies that route at that time. It
+                      does not prove a device is connected or a repair
+                      succeeded.
                     </p>
                   </div>
                   <div>
@@ -1444,13 +1512,7 @@ export function App() {
                 className="icon-btn"
                 disabled={busy}
                 aria-label="Decline and close proposal"
-                onClick={() =>
-                  void run(async () => {
-                    await api(`plans/${plan.id}/deny`);
-                    setPlan(undefined);
-                    await refresh();
-                  })
-                }
+                onClick={() => void run(decline)}
               >
                 <X size={20} />
               </button>
@@ -1495,18 +1557,31 @@ export function App() {
                 device.
               </div>
             )}
-            <label className="approval-checkbox">
-              <input
-                type="checkbox"
-                checked={approved}
-                onChange={(e) => setApproved(e.target.checked)}
-                disabled={busy || !expiry || !permitted}
-              />
-              <span>
-                I approve this specific{" "}
-                {plan.direction === "undo" ? "undo" : "change"}.
-              </span>
-            </label>
+            {planApproved ? (
+              <div className="approval-waiting" role="status">
+                <strong>
+                  Approved. Waiting for Fo to execute this exact plan.
+                </strong>
+                <p>
+                  This approval has not executed a change. Ask Fo to continue
+                  before the proposal expires. You can still decline to revoke
+                  approval.
+                </p>
+              </div>
+            ) : (
+              <label className="approval-checkbox">
+                <input
+                  type="checkbox"
+                  checked={approved}
+                  onChange={(e) => setApproved(e.target.checked)}
+                  disabled={busy || !expiry || !permitted}
+                />
+                <span>
+                  I approve this specific{" "}
+                  {plan.direction === "undo" ? "undo" : "change"}.
+                </span>
+              </label>
+            )}
             {error && (
               <p className="modal-error" role="alert">
                 {error}
@@ -1521,19 +1596,24 @@ export function App() {
               <button
                 className="secondary"
                 disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    await api(`plans/${plan.id}/deny`);
-                    setPlan(undefined);
-                    await refresh();
-                  })
-                }
+                onClick={() => void run(decline)}
               >
                 Decline
               </button>
+              {!planApproved && (
+                <button
+                  className="secondary"
+                  disabled={!approved || busy || !expiry || !permitted}
+                  onClick={() => void run(approveForFo)}
+                >
+                  Approve for Fo
+                </button>
+              )}
               <button
                 className="primary"
-                disabled={!approved || busy || !expiry || !permitted}
+                disabled={
+                  (!approved && !planApproved) || busy || !expiry || !permitted
+                }
                 onClick={() => void run(apply)}
               >
                 {busy ? (
@@ -1541,7 +1621,9 @@ export function App() {
                 ) : (
                   <Check size={16} />
                 )}
-                Approve & {plan.direction === "undo" ? "undo" : "apply"}
+                {planApproved
+                  ? `Apply approved ${plan.direction === "undo" ? "undo" : "change"}`
+                  : `Approve & ${plan.direction === "undo" ? "undo" : "apply"}`}
               </button>
             </div>
             <small className="approval-footnote">

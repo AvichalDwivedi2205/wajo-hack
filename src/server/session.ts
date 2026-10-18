@@ -277,8 +277,9 @@ export class SessionBroker implements OwnerService {
         "undo",
       ],
       fo: {
-        connected: false,
-        status: "Fo account registration is not verified by this gateway.",
+        connected: null,
+        status:
+          "Fo registration is managed in Wajo. This gateway cannot verify the account registration; confirm it with a live Fo tool call.",
       },
       history: { redacted: true, actionCount: 0, planCount: 0, eventCount: 0 },
       actions: [],

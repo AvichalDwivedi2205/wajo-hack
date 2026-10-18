@@ -137,12 +137,10 @@ export class BearerAuth implements OwnerAuthentication {
       res.json({ method: "bearer" }),
     );
     app.get("/.well-known/oauth-protected-resource/mcp", (_req, res) =>
-      res
-        .status(404)
-        .json({
-          code: "EXPLICIT_BEARER_PROFILE",
-          message: "Configure this connection's bearer credential explicitly.",
-        }),
+      res.status(404).json({
+        code: "EXPLICIT_BEARER_PROFILE",
+        message: "Configure this connection's bearer credential explicitly.",
+      }),
     );
     app.post("/owner/auth/login", (req, res) => {
       this.sameOrigin(req);
@@ -187,6 +185,7 @@ export class BearerAuth implements OwnerAuthentication {
         authenticated: true,
         csrfToken: res.locals.ownerSession.csrf,
         expiresAt: res.locals.ownerSession.expiresAt,
+        deploymentExpiresAt: this.config.accessExpiresAt,
       }),
     );
     app.post("/owner/auth/logout", this.owner, async (req, res) => {

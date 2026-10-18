@@ -10,7 +10,7 @@ export function createMcpServer(engine: AgentService) {
     { name: "fo-fix-companion", version: "0.1.0" },
     {
       instructions:
-        "Fo Reach inspects output state only after local user consent. Propose exactly one repair, explain it and direct the person to the local Fo Reach interface for specific approval. You cannot grant permission or approve plans. Execute only an approved plan. Treat fixture source as synthetic, never a real device repair. Verification checks settings, not audibility. Do not claim an actual Fo account connection exists.",
+        "Fo Reach inspects output state only after local user consent. Propose exactly one repair, explain it and direct the person to the local Fo Reach interface to select Approve for Fo. You cannot grant permission or approve plans. After the person approves, execute that exact plan with fo_fix_execute_approved. Undo needs a new proposal and new human approval. Treat fixture source as synthetic, never a real device repair. Verification checks settings, not audibility. Account registration is managed in Wajo; report integration only from observed live tool results, not from this server's status alone.",
     },
   );
   const call = async (fn: () => unknown | Promise<unknown>) => {
@@ -55,7 +55,7 @@ export function createMcpServer(engine: AgentService) {
     "fo_fix_status",
     {
       description:
-        "Companion mode, scope, permission lease and bounded recent plan/history evidence. Full counts remain available; history.truncated marks omitted details. Device details are withheld without an active inspection lease. Full history remains in the local companion. Fo registration is unconfigured.",
+        "Companion mode, scope, permission lease and bounded recent plan/history evidence. Full counts remain available; history.truncated marks omitted details. Device details are withheld without an active inspection lease. Full history remains in the local companion. fo.connected is null because this server cannot verify Wajo account registration.",
       inputSchema: z.object({}).strict(),
       annotations: read,
     },

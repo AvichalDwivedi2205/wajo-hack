@@ -105,7 +105,9 @@ test("mobile layout has no horizontal overflow and integration is candid", async
   await page
     .getByRole("button", { name: "Fo connection", exact: true })
     .click();
-  await expect(page.getByText("Not connected", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Account state unknown", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByText("The existing Fo account connector is separate", {
       exact: false,
@@ -478,4 +480,189 @@ test("a maximum-length unbroken synthetic device name wraps inside a mobile appr
   ).toBe(true);
   await dialog.getByRole("button", { name: "Decline", exact: true }).click();
   await expect(dialog).not.toBeVisible();
+});
+
+test("Fo can execute only after approval-only review, with delayed polling, reload, separate undo and revocation", async ({
+  page,
+  baseURL,
+}) => {
+  const client = new Client({
+    name: "synthetic-Fo-approval-only",
+    version: "1",
+  });
+  const heldPolls: Array<() => void> = [];
+  const approvedSeen = new Set<string>();
+  let holdPolls = false,
+    browserExecutions = 0;
+  await page.route("**/api/status", async (route) => {
+    if (holdPolls)
+      await new Promise<void>((resolve) => heldPolls.push(resolve));
+    const response = await route.fetch();
+    const data = await response.json();
+    for (const plan of data.plans ?? [])
+      if (plan.status === "approved") approvedSeen.add(plan.id);
+    await route.fulfill({ response, json: data });
+  });
+  page.on("request", (request) => {
+    if (/\/api\/plans\/[^/]+\/execute$/.test(request.url()))
+      browserExecutions++;
+  });
+  const releasePolls = () => {
+    holdPolls = false;
+    heldPolls.splice(0).forEach((release) => release());
+  };
+  const call = async (name: string, args = {}) =>
+    client.callTool({ name, arguments: args });
+  try {
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(`${baseURL}/mcp`)),
+    );
+    await page.goto("/");
+    await page
+      .getByRole("button", { name: "Allow sound-output inspection" })
+      .click();
+    const inspected = (await call("fo_fix_inspect_output"))
+      .structuredContent as {
+      result: { outputId: string; devices: { id: string; name: string }[] };
+    };
+    const target = inspected.result.devices.find(
+      (device) => device.id !== inspected.result.outputId,
+    )!;
+    const proposal = (
+      await call("fo_fix_propose_repair", {
+        recipe: "switch-output",
+        deviceId: target.id,
+      })
+    ).structuredContent as { result: { id: string } };
+    const plan = proposal.result;
+    expect(
+      (await call("fo_fix_execute_approved", { planId: plan.id })).isError,
+    ).toBe(true);
+    const dialog = page.getByRole("dialog");
+    await expect(
+      dialog.getByRole("heading", { name: `Use ${target.name}` }),
+    ).toBeVisible();
+    await expect(
+      dialog.getByRole("button", { name: "Approve for Fo" }),
+    ).toBeDisabled();
+    await dialog
+      .getByRole("checkbox", { name: "I approve this specific change." })
+      .check();
+    holdPolls = true;
+    await dialog.getByRole("button", { name: "Approve for Fo" }).click();
+    await expect(
+      dialog.getByText("Approved. Waiting for Fo to execute this exact plan."),
+    ).toBeVisible();
+    await expect(
+      dialog.getByRole("button", { name: "Decline", exact: true }),
+    ).toBeEnabled();
+    await expect(dialog.getByRole("checkbox")).toHaveCount(0);
+    expect(browserExecutions).toBe(0);
+    const before = (await call("fo_fix_inspect_output"))
+      .structuredContent as typeof inspected;
+    expect(before.result.outputId).toBe(inspected.result.outputId);
+    releasePolls();
+    await page.reload();
+    await expect(
+      dialog.getByText("Approved. Waiting for Fo to execute this exact plan."),
+    ).toBeVisible();
+    const executed = (
+      await call("fo_fix_execute_approved", { planId: plan.id })
+    ).structuredContent as {
+      result: { id: string; state: string; verification: { status: string } };
+    };
+    expect(executed.result.state).toBe("succeeded");
+    expect(executed.result.verification.status).toBe("passed");
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByText("Fixture setting verified.")).toBeVisible();
+    const undo = (
+      await call("fo_fix_propose_undo", { actionId: executed.result.id })
+    ).structuredContent as typeof proposal;
+    expect(
+      (await call("fo_fix_execute_approved", { planId: undo.result.id }))
+        .isError,
+    ).toBe(true);
+    await dialog
+      .getByRole("checkbox", { name: "I approve this specific undo." })
+      .check();
+    await dialog.getByRole("button", { name: "Approve for Fo" }).click();
+    await expect(
+      dialog.getByText("Approved. Waiting for Fo to execute this exact plan."),
+    ).toBeVisible();
+    expect(
+      (await call("fo_fix_execute_approved", { planId: undo.result.id }))
+        .isError,
+    ).not.toBe(true);
+    await expect(dialog).not.toBeVisible();
+    const restored = (await call("fo_fix_inspect_output"))
+      .structuredContent as typeof inspected;
+    expect(restored.result.outputId).toBe(inspected.result.outputId);
+    const cancelled = (
+      await call("fo_fix_propose_repair", {
+        recipe: "switch-output",
+        deviceId: target.id,
+      })
+    ).structuredContent as typeof proposal;
+    await dialog
+      .getByRole("checkbox", { name: "I approve this specific change." })
+      .check();
+    await dialog.getByRole("button", { name: "Approve for Fo" }).click();
+    await expect(
+      dialog.getByText("Approved. Waiting for Fo to execute this exact plan."),
+    ).toBeVisible();
+    await expect.poll(() => approvedSeen.has(cancelled.result.id)).toBe(true);
+    holdPolls = true;
+    await dialog.getByRole("button", { name: "Decline", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    expect(
+      (await call("fo_fix_execute_approved", { planId: cancelled.result.id }))
+        .isError,
+    ).toBe(true);
+    expect(browserExecutions).toBe(0);
+  } finally {
+    releasePolls();
+    await page.unrouteAll({ behavior: "wait" });
+    await client.close();
+  }
+});
+
+test("authenticated bearer owner sees exact UTC session and deployment deadlines with unknown account evidence", async ({
+  page,
+}) => {
+  const expiresAt = Date.UTC(2026, 9, 18, 12, 15, 30, 123);
+  const deploymentExpiresAt = Date.UTC(2026, 9, 18, 14, 0, 0, 456);
+  await page.route("**/api/auth", (route) =>
+    route.fulfill({
+      json: {
+        mode: "remote",
+        authenticated: true,
+        csrfToken: "synthetic-csrf",
+        expiresAt,
+        deploymentExpiresAt,
+      },
+    }),
+  );
+  await page.goto("/");
+  await expect(
+    page.getByText("Owner session ends", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.locator(
+      `time[datetime="${new Date(deploymentExpiresAt).toISOString()}"]`,
+    ),
+  ).toHaveText("2026-10-18 14:00:00.456 UTC");
+  await expect(
+    page.getByText("No automatic renewal.", { exact: false }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Fo connection", exact: true })
+    .click();
+  await expect(
+    page.getByText("Account state unknown", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("A successful tool call verifies that route at that time.", {
+      exact: false,
+    }),
+  ).toBeVisible();
 });

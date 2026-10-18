@@ -309,6 +309,33 @@ main {
   font-size: 10px;
   gap: 10px;
 }
+.access-window {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.access-window svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.approval-waiting {
+  padding: 14px;
+  margin-top: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.approval-waiting p {
+  margin: 6px 0 0;
+}
 .environment-banner > span:first-child {
   display: flex;
   align-items: center;
@@ -1533,6 +1560,7 @@ dt {
   accent-color: #849e64;
 }
 .modal-actions {
+  flex-wrap: wrap;
   display: flex;
   justify-content: flex-end;
   gap: 10px;

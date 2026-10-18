@@ -18,6 +18,8 @@ Fo Reach exposes five strict tools through the official MCP SDK. No grants, appr
 
 The service accepts stateless Streamable HTTP POST with JSON results. The bearer profile is explicit configuration, not a claimed OAuth discovery implementation. It advertises no invented authorization server; optional OAuth remains separately selected. SDK tests exercise the full fixture flow and separate device relay under both modes; those tests do not establish live Fo compatibility.
 
+The owner/local companion now offers **Approve for Fo** for repairs and undo. It records exact approval without executing. Fo executes through its existing bounded MCP tool. Owner deadline display and the offline credential handoff are documented in [CREDENTIAL-HANDOFF.md](CREDENTIAL-HANDOFF.md). `fo.connected` is null: account state is unknown to this service and must be checked through actual Wajo registration and live results.
+
 ## Exact remaining authorized acceptance
 
 1. Confirm an approved HTTPS origin/host, actual trusted proxy source addresses or same-host TLS arrangement, and one persistent fixture volume. No hosting purchase should be based on unverified routing assumptions.
