@@ -4,12 +4,18 @@ import { mkdtemp, writeFile, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { invariant } from "../core/errors.ts";
+import { FixError, invariant } from "../core/errors.ts";
 
 const run = promisify(execFile);
 const cloudHelper = fileURLToPath(
   new URL("../../scripts/review-pdf.py", import.meta.url),
 );
+// macOS uses only the fixed, locally compiled read-only PDF commands, including
+// when testing explicitly synthetic output. This never selects a native writer.
+const defaultNativeHelper =
+  process.platform === "darwin"
+    ? fileURLToPath(new URL("../../companion/macos/.build/fo-review", import.meta.url))
+    : undefined;
 export async function cloudPdf(
   mode: "text" | "info" | "render",
   path: string,
@@ -28,7 +34,10 @@ export async function cloudPdf(
     },
   );
 }
-export async function inspectPdf(buffer: Buffer, nativeHelper?: string) {
+export async function inspectPdf(
+  buffer: Buffer,
+  nativeHelper = defaultNativeHelper,
+) {
   invariant(
     buffer.length <= 16 * 1024 * 1024 &&
       buffer.subarray(0, 5).toString() === "%PDF-",
@@ -46,13 +55,20 @@ export async function inspectPdf(buffer: Buffer, nativeHelper?: string) {
   try {
     const path = join(directory, "source.pdf");
     await writeFile(path, buffer, { flag: "wx", mode: 0o600 });
-    const operation = (mode: "text" | "info") =>
-      process.platform === "darwin"
-        ? run(nativeHelper!, [`pdf-${mode}`, path], {
-            timeout: 15_000,
-            maxBuffer: 64 * 1024,
-          })
-        : cloudPdf(mode, path);
+    const operation = async (mode: "text" | "info") => {
+      if (process.platform !== "darwin") return cloudPdf(mode, path);
+      try {
+        return await run(nativeHelper!, [`pdf-${mode}`, path], {
+          timeout: 15_000,
+          maxBuffer: 64 * 1024,
+        });
+      } catch {
+        throw new FixError(
+          "REVIEW_PDF",
+          "Native PDF page inspection was refused. Check the bounded file and fixed helper.",
+        );
+      }
+    };
     const info = (await operation("info")).stdout.toString();
     const fields = [...info.matchAll(/^Pages:[ \t]+(\d+)[ \t]*$/gm)];
     invariant(
@@ -79,7 +95,7 @@ export async function pdfText(buffer: Buffer, nativeHelper?: string) {
 }
 export async function* renderPdfPages(
   buffer: Buffer,
-  nativeHelper?: string,
+  nativeHelper = defaultNativeHelper,
   signal?: AbortSignal,
 ) {
   invariant(

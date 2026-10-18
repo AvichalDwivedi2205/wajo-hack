@@ -32,7 +32,12 @@ static void require(BOOL condition) { if (!condition) @throw [NSException except
 - (id)eventDidFail:(const AppleEvent *)event withError:(NSError *)error { self.failed=YES;return nil; }
 @end
 static NSString *checked(NSString *path) {
-  require(path.isAbsolutePath && [path.stringByStandardizingPath isEqualToString:path]);
+  // Cocoa's standardizer rewrites real /private/var and /private/tmp paths to
+  // symlink aliases. Check lexical components, then reject every actual symlink.
+  require(path.isAbsolutePath);
+  if(![path isEqualToString:@"/"])
+    for(NSString *part in [[path substringFromIndex:1] componentsSeparatedByString:@"/"])
+      require(part.length>0&&![part isEqualToString:@"."]&&![part isEqualToString:@".."]);
   NSString *cursor=@"/";
   for(NSString *part in [path pathComponents]) {
     if([part isEqualToString:@"/"])continue;
@@ -68,12 +73,13 @@ static NSString *hash(NSData *data) {
   unsigned char digest[CC_SHA256_DIGEST_LENGTH];CC_SHA256(data.bytes,(CC_LONG)data.length,digest);
   NSMutableString *value=[NSMutableString string];for(NSUInteger i=0;i<CC_SHA256_DIGEST_LENGTH;i++)[value appendFormat:@"%02x",digest[i]];return value;
 }
-static void permission(void) {
+static OSStatus permissionStatus(void) {
   const char *bundle="com.apple.iWork.Keynote";AEAddressDesc target={typeNull,NULL};
   require(AECreateDesc(typeApplicationBundleID,bundle,strlen(bundle),&target)==noErr);
   OSStatus status=AEDeterminePermissionToAutomateTarget(&target,typeWildCard,typeWildCard,false);
-  AEDisposeDesc(&target);require(status==noErr); // Never prompt or expand Automation access.
+  AEDisposeDesc(&target);return status; // Never prompt or expand Automation access.
 }
+static void permission(void) { require(permissionStatus()==noErr); }
 static NSURL *applicationURL(void) {
   NSString *path=checked(@"/Applications/Keynote.app");
   NSBundle *bundle=[NSBundle bundleWithPath:path];
@@ -88,13 +94,36 @@ static void geometry(KeynoteIWorkItem *item,CGFloat x,CGFloat y,NSInteger width,
   NSPoint point=item.position;
   require(fabs(point.x-x)<0.5&&fabs(point.y-y)<0.5&&item.width==width&&item.height==height);
 }
+static NSData *plainGeneratedPNG(NSData *png) {
+  // NSBitmapImageRep on macOS 26 adds eXIf. Remove only that generated metadata;
+  // retain every pixel-bearing chunk unchanged and keep source validation strict.
+  require(png.length>=8);NSMutableData *plain=[NSMutableData dataWithData:[png subdataWithRange:NSMakeRange(0,8)]];
+  NSUInteger cursor=8,chunks=0;
+  while(cursor+12<=png.length) {
+    uint32_t bigLength;memcpy(&bigLength,(const char *)png.bytes+cursor,4);
+    NSUInteger length=CFSwapInt32BigToHost(bigLength);
+    require(++chunks<=128&&length<=4*1024*1024&&length+12<=png.length-cursor);
+    if(memcmp((const char *)png.bytes+cursor+4,"eXIf",4)!=0)
+      [plain appendData:[png subdataWithRange:NSMakeRange(cursor,length+12)]];
+    cursor+=length+12;
+  }
+  require(cursor==png.length);return plain;
+}
 static NSData *pageRaster(PDFPage *page) {
   NSRect box=[page boundsForBox:kPDFDisplayBoxMediaBox];require(fabs(box.size.width/box.size.height-16.0/9.0)<0.02);
-  NSImage *image=[page thumbnailOfSize:NSMakeSize(1280,720) forBox:kPDFDisplayBoxMediaBox];
+  // AppKit cannot reliably draw into a three-channel bitmap context. Render
+  // through an explicit supported CoreGraphics buffer, then copy RGB samples.
+  CGColorSpaceRef color=CGColorSpaceCreateDeviceRGB();
+  CGContextRef context=CGBitmapContextCreate(NULL,1280,720,8,1280*4,color,kCGImageAlphaNoneSkipLast|kCGBitmapByteOrder32Big);
+  CGColorSpaceRelease(color);require(context!=NULL);
+  CGContextSetRGBFillColor(context,1,1,1,1);CGContextFillRect(context,CGRectMake(0,0,1280,720));
+  CGContextScaleCTM(context,1280.0/box.size.width,720.0/box.size.height);CGContextTranslateCTM(context,-box.origin.x,-box.origin.y);
+  [page drawWithBox:kPDFDisplayBoxMediaBox toContext:context];CGContextFlush(context);
   NSBitmapImageRep *bitmap=[[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:1280 pixelsHigh:720 bitsPerSample:8 samplesPerPixel:3 hasAlpha:NO isPlanar:NO colorSpaceName:NSDeviceRGBColorSpace bytesPerRow:1280*3 bitsPerPixel:24];require(bitmap!=nil);
-  [NSGraphicsContext saveGraphicsState];[NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithBitmapImageRep:bitmap]];
-  [NSColor.whiteColor setFill];NSRectFill(NSMakeRect(0,0,1280,720));[image drawInRect:NSMakeRect(0,0,1280,720)];[NSGraphicsContext restoreGraphicsState];
-  NSData *png=[bitmap representationUsingType:NSBitmapImageFileTypePNG properties:@{}];require(png.length>2000&&png.length<=8*1024*1024);return png;
+  const unsigned char *rgba=CGBitmapContextGetData(context);unsigned char *rgb=bitmap.bitmapData;require(rgba!=NULL&&rgb!=NULL);
+  for(NSUInteger pixel=0;pixel<1280*720;pixel++)memcpy(rgb+pixel*3,rgba+pixel*4,3);
+  CGContextRelease(context);
+  NSData *png=[bitmap representationUsingType:NSBitmapImageFileTypePNG properties:@{}];require(png.length>2000&&png.length<=8*1024*1024);return plainGeneratedPNG(png);
 }
 static void render(NSString *directory) {
   NSString *path=[directory stringByAppendingPathComponent:@"review.pdf"];
@@ -112,6 +141,10 @@ int main(int argc,const char *argv[]) { @autoreleasepool { @try {
     require(argc==2);applicationURL();
     NSDictionary *identity=@{@"recipeSha256":@REVIEW_RECIPE_SHA,@"dictionarySha256":@REVIEW_DICTIONARY_SHA,@"keynoteVersion":@REVIEW_KEYNOTE_VERSION};
     NSData *json=[NSJSONSerialization dataWithJSONObject:identity options:0 error:nil];fwrite(json.bytes,1,json.length,stdout);return 0;
+  }
+  if([command isEqualToString:@"automation-status"]) {
+    require(argc==2);applicationURL();OSStatus status=permissionStatus();
+    printf("{\"authorized\":%s,\"status\":%d,\"promptAllowed\":false}",status==noErr?"true":"false",(int)status);return 0;
   }
   if([command isEqualToString:@"pdf-render"]) {
     require(argc==4);NSString *path=[NSString stringWithUTF8String:argv[2]],*number=[NSString stringWithUTF8String:argv[3]];
@@ -141,12 +174,19 @@ int main(int argc,const char *argv[]) { @autoreleasepool { @try {
   NSDictionary *sourceHashes=request[@"sourceHashes"];require([sourceHashes isKindOfClass:NSDictionary.class]&&sourceHashes.count==3);
   NSData *template=readBounded([directory stringByAppendingPathComponent:@"template.key"],32*1024*1024);require([hash(template) isEqual:sourceHashes[@"template"]]);
   require([hash(readBounded([directory stringByAppendingPathComponent:@"before.png"],4*1024*1024)) isEqual:sourceHashes[@"before"]]&&[hash(readBounded([directory stringByAppendingPathComponent:@"proposed.png"],4*1024*1024)) isEqual:sourceHashes[@"proposed"]]);
-  permission();
   BOOL coldStart=[NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.iWork.Keynote"].count==0;
+  if(coldStart) {
+    // The permission API requires a running target. Preserve the initial state
+    // before launching the fixed app, and still refuse any permission prompt.
+    NSError *launchError=nil;
+    NSRunningApplication *launched=[[NSWorkspace sharedWorkspace] launchApplicationAtURL:target options:NSWorkspaceLaunchWithoutActivation|NSWorkspaceLaunchWithoutAddingToRecents configuration:@{} error:&launchError];
+    require(launched!=nil&&launchError==nil);
+  }
+  permission();
   writeNew(@"review.key",template);
   KeynoteApplication *app=[SBApplication applicationWithURL:target];require(app!=nil);
   ReviewEvents *events=[ReviewEvents new];app.delegate=events;
-  app.timeout=60;
+  app.timeout=60*60; // ScriptingBridge uses 1/60-second Apple-event ticks.
   outputGuard();checked(copy);[app open:[NSURL fileURLWithPath:copy]];
   require(!events.failed);
   KeynoteDocument *document=nil;
@@ -195,7 +235,7 @@ int main(int argc,const char *argv[]) { @autoreleasepool { @try {
   [document exportTo:[NSURL fileURLWithPath:pdf] as:KeynoteExportFormatPDF withProperties:@{}];require(!events.failed);outputGuard();
   render(directory);
   [app activate]; // Leave only the specific edited copy open; never close originals.
-  require([document exists]&&document.file&&[document.file.path isEqualToString:copy]&&!events.failed);
+  require([app exists:document]&&document.file&&[document.file.path isEqualToString:copy]&&!events.failed);
   NSDictionary *receipt=@{@"coldStart":@(coldStart),@"keynoteVersion":@REVIEW_KEYNOTE_VERSION,@"dictionarySha256":@REVIEW_DICTIONARY_SHA,@"recipeSha256":@REVIEW_RECIPE_SHA,@"copyLeftOpen":@YES};
   NSData *receiptData=[NSJSONSerialization dataWithJSONObject:receipt options:0 error:nil];
   writeNew(@"receipt.json",receiptData);

@@ -9,6 +9,7 @@ import {
   readdir,
   rm,
   stat,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import { join, relative } from "node:path";
@@ -335,13 +336,16 @@ for (const conflict of [
 ])
   test(`${conflict} fails before an executable plan`, async () => {
     const c = await reviewFixture();
+    let hardlink: string | undefined;
     try {
-      if (conflict === "hardlinked source")
+      if (conflict === "hardlinked source") {
+        const alias = join(c.root, "Metrics/shadow.csv");
         await link(
           join(c.root, "Metrics/refunds-r2.csv"),
-          join(c.root, "Metrics/shadow.csv"),
+          alias,
         );
-      else if (conflict === "inconsistent refund total") {
+        hardlink = alias;
+      } else if (conflict === "inconsistent refund total") {
         const name = "Metrics/refunds-r2.csv",
           rows = (await readFile(join(c.root, name), "utf8"))
             .trimEnd()
@@ -362,6 +366,9 @@ for (const conflict of [
       assert.equal(c.engine.status().plans.length, 0);
       assert.deepEqual(await readdir(join(c.root, "Deliverables")), []);
     } finally {
+      // APFS can reject concurrent unlink of both names during recursive rm.
+      // Remove the test alias first; the rejection assertions above stay intact.
+      if (hardlink) await unlink(hardlink);
       await c.close();
     }
   });
