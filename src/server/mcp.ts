@@ -6,8 +6,9 @@ import { repairRequest } from "../shared/requests.ts";
 import { MAX_MCP_RESULT_BYTES } from "../shared/limits.ts";
 import { reviewId, reviewPrepare, reviewAttachment } from "../review/contracts.ts";
 import { appOpenRequest, appPlanId } from "../apps/contracts.ts";
+import { attachmentDownloadRequest, type AttachmentDownloads } from "./attachment-download.ts";
 
-export function createMcpServer(engine: AgentService) {
+export function createMcpServer(engine: AgentService, downloads?: AttachmentDownloads) {
   const server = new McpServer(
     { name: "fo-fix-companion", version: "0.1.0" },
     {
@@ -154,6 +155,10 @@ export function createMcpServer(engine: AgentService) {
   );
   if (engine.review) {
     const review = engine.review;
+    if (downloads) server.registerTool("review.attachment_download", {
+      description: "After exact human attachment-sharing approval, get a single-use HTTPS download of one verified generated PDF/PPTX. URL is a private capability valid at most two minutes and only for the same live Mac session. Download directly in your coding workspace, hash complete bytes against sha256, then use its actual artifact ID for approved email. Mac sharing, revocation and expiry are rechecked during download. Never log or publish the URL. This grants no email/call authorization and creates no files.",
+      inputSchema: attachmentDownloadRequest, annotations: read,
+    }, ({ id, name }) => call(() => downloads.issue(id, name)));
     server.registerTool("review.read_attachment", {
       description: "Read one 64 KiB base64 chunk of a verified generated PDF/PPTX only after separate human attachment-sharing approval. Start offset 0, use nextOffset until totalBytes, reconstruct original bytes in your own workspace, verify full SHA-256, then obtain that workspace's artifact ID for email. Never regenerate or alter the deck. A share expires within five minutes and grants no email/call authorization. Report binary transfer as unverified until recipient attachment hashes match.",
       inputSchema: reviewAttachment, annotations: read,

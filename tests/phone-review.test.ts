@@ -17,6 +17,7 @@ import { identityFixture, remoteFixture } from "./support/remote.ts";
 import { reviewFixture, prepared, finished } from "./support/review.ts";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { request as httpRequest } from "node:http";
 
 test("three-hour device sessions remain capped by the credential deadline and do not renew", async () => {
   let now = Date.now();
@@ -258,8 +259,29 @@ test("owner phone approval traverses real HTTP gateway and foreground bridge; MC
     const chunk = result(await call("review.read_attachment", { id: job.id, name: "review.pdf", offset: 0 }));
     assert.equal(chunk.sha256, complete.artifacts.find(file => file.name === "review.pdf")!.sha256);
     assert.match(Buffer.from(chunk.base64, "base64").toString("ascii"), /^%PDF/);
+    // The real MCP -> gateway -> companion path issues metadata only. A coding
+    // sandbox can fetch exact bytes without copying base64 through model text.
+    const grant = result(await call("review.attachment_download", { id: job.id, name: "review.pdf" }));
+    assert(grant.url && !JSON.stringify(grant).includes("base64"));
+    const download = (url: string, method = "GET") => new Promise<{ status: number; bytes: Buffer; cache?: string }>((resolve, reject) => {
+      const req = httpRequest({ hostname: "127.0.0.1", port: gateway.port, path: new URL(url).pathname, method,
+        headers: { Host: new URL(identity.config.origin).host, "X-Forwarded-Proto": "https" } }, res => {
+        const parts: Buffer[] = []; res.on("data", part => parts.push(Buffer.from(part)));
+        res.on("end", () => resolve({ status: res.statusCode!, bytes: Buffer.concat(parts), cache: res.headers["cache-control"] }));
+      }); req.on("error", reject); req.end();
+    });
+    assert.equal((await download(grant.url, "HEAD")).status, 405);
+    const received = await download(grant.url);
+    assert.equal(received.status, 200); assert.equal(received.cache, "no-store");
+    assert.equal(createHash("sha256").update(received.bytes).digest("hex"), grant.sha256);
+    assert.equal((await download(grant.url)).status, 403);
+    const revokedGrant = result(await call("review.attachment_download", { id: job.id, name: "review.pdf" }));
     assert.equal((await remote(`/jobs/${job.id}/artifacts/manifest.json`)).status, 400);
     assert.equal((await local("/phone/disable", {})).status, 200);
+    const deniedDownload = await download(revokedGrant.url);
+    assert.equal(deniedDownload.status, 409); // Existing MCP relay refusal status.
+    assert.match(deniedDownload.bytes.toString(), /REVIEW_PERMISSION|ATTACHMENT_APPROVAL_REQUIRED/);
+    assert.equal((await call("review.attachment_download", { id: job.id, name: "review.pdf" })).isError, true);
     assert.equal((await remote(`/jobs/${job.id}/artifacts/review.pdf`)).status, 403);
     assert.equal((await call("review.read_attachment", { id: job.id, name: "review.pdf", offset: 0 })).isError, true);
   } finally {

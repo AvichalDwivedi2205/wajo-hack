@@ -112,8 +112,8 @@ for (const route of ["simulation", "pptx"] as const) test(
         ),
       );
       const tools = (await client.listTools()).tools;
-      assert.equal(tools.length, 11);
-      assert.equal(tools.filter((t) => t.name.startsWith("review.")).length, 6);
+      assert.equal(tools.length, 12);
+      assert.equal(tools.filter((t) => t.name.startsWith("review.")).length, 7);
       assert(tools.every((t) => t.inputSchema.additionalProperties === false));
       assert(!tools.some((t) => t.name === "review.approve"));
       const call = async (name: string, args: Record<string, unknown> = {}) =>

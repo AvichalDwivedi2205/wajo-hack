@@ -211,6 +211,10 @@ export class SessionBroker implements OwnerService {
     );
     return this.session!;
   }
+  attachmentSession() {
+    const session = this.requireSession();
+    return { sessionId: session.id, expiresAt: session.expiresAt };
+  }
   async poll(
     sessionId: string,
     signal: AbortSignal,

@@ -16,6 +16,7 @@ import { BearerAuth } from "./bearer-auth.ts";
 import { trustedProxyCheck } from "./proxy.ts";
 import { mountReview } from "../review/routes.ts";
 import { mountApps } from "../apps/routes.ts";
+import { AttachmentDownloads } from "./attachment-download.ts";
 
 export function createApp(
   engine: OwnerService,
@@ -82,6 +83,14 @@ export function createApp(
       return;
     }
     next();
+  });
+  const downloads = config.mode === "remote" && engine instanceof SessionBroker && engine.review
+    ? new AttachmentDownloads(engine, config.origin, options.auth?.clock) : undefined;
+  if (downloads) app.head("/attachments/:token", (_req, res) => { res.sendStatus(405); });
+  if (downloads) app.get("/attachments/:token", async (req, res) => {
+    const file = await downloads.consume(req.params.token);
+    res.setHeader("Content-Disposition", `attachment; filename="${file.name}"`);
+    res.type(file.name === "review.pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.presentationml.presentation").send(file.bytes);
   });
   // Authenticate machine and owner APIs before parsing their request bodies.
   if (auth) {
@@ -175,7 +184,7 @@ export function createApp(
     res.json(await engine.proposeUndo(actionId));
   });
   app.post("/mcp", async (req, res, next) => {
-    const server = createMcpServer(engine);
+    const server = createMcpServer(engine, downloads);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
