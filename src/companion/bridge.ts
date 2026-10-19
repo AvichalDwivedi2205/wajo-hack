@@ -4,6 +4,7 @@ import { relayConnection, relayPoll } from "../shared/relay.ts";
 import { FixError, invariant } from "../core/errors.ts";
 import type { Mode } from "../shared/types.ts";
 import { boundedJson } from "../shared/bounded-json.ts";
+import { DEVICE_SESSION_MS } from "../shared/limits.ts";
 
 export async function runDeviceSession(options: {
   origin: string;
@@ -109,7 +110,7 @@ export async function runDeviceSession(options: {
     sessionId = connected.sessionId;
     invariant(
       connected.expiresAt > clock() &&
-        connected.expiresAt <= clock() + 20 * 60_000 + 5000,
+        connected.expiresAt <= clock() + DEVICE_SESSION_MS + 5000,
       "INVALID_GATEWAY_RESPONSE",
       "The gateway returned an invalid bounded session.",
       502,

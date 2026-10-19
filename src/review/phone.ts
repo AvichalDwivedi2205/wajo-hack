@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEVICE_SESSION_MS } from "../shared/limits.ts";
 import { invariant } from "../core/errors.ts";
 import type { ReviewEngine } from "./engine.ts";
 import { reviewApproval, reviewPlanSchema, reviewJobSchema, attachmentShare } from "./contracts.ts";
@@ -46,7 +47,7 @@ export class PhoneReview {
   constructor(private review: ReviewEngine, private clock = Date.now) {}
   register(value: PhoneLink) {
     const link = phoneLink.parse(value);
-    invariant(link.expiresAt > this.clock() && link.expiresAt <= this.clock() + 20 * 60_000 + 5000,
+    invariant(link.expiresAt > this.clock() && link.expiresAt <= this.clock() + DEVICE_SESSION_MS + 5000,
       "PHONE_SESSION_INVALID", "Phone review needs a current bounded foreground session.", 403);
     invariant(!this.link || this.link.expiresAt <= this.clock(), "PHONE_SESSION_ACTIVE", "End the existing phone review session on the Mac first.", 409);
     this.link = link;

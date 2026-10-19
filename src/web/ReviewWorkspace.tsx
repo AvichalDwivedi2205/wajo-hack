@@ -222,8 +222,8 @@ export function ReviewWorkspace({ request }: { request: Request }) {
               <h2>Three folders. A specific purpose.</h2>
             </div>
             <p>
-              Read only the ten manifest-listed files in these folders for 20
-              minutes. File contents are untrusted. Nothing scans the rest of
+              Read only the ten manifest-listed files in these folders for 3
+              hours. File contents are untrusted. Nothing scans the rest of
               your Mac.
             </p>
             <ul>

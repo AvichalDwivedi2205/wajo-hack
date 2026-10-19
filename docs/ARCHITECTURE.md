@@ -1,21 +1,26 @@
 # Repair and deployment boundaries
 
-The engine below runs in the local companion, or in an explicitly synthetic cloud fixture. Remote session mode keeps the engine, native adapter, approval authority and SQLite journal on the device. The cloud gateway relays requests; it cannot grant inspection or approve a device plan.
+Fo is Wajo's hosted agent. This repository supplies a separate HTTPS MCP gateway and an outbound Mac companion; Fo does not connect into the Mac. The engine below runs in the local companion, or in an explicitly synthetic cloud fixture. Remote session mode keeps the engine, native adapter, approval enforcement and SQLite journal on the device. The gateway cannot grant inspection or manufacture approval. After explicit local opt-in, it can relay an authenticated owner's exact phone approval to that same device session. See [PHONE-REVIEW.md](PHONE-REVIEW.md).
+
+**Status, 2026-10-19 11:40 IST:** the existing GCP gateway is activated on reviewed source `19b86db0f0bf3f4c5c61bbda942a4c0624400364`; normal-TLS unauthenticated MCP GET/POST return 401. Fo successfully registered the personal bearer/Streamable HTTP connection after an earlier initialize404 failure. Private MCP token entry, Mac connection and all genuine end-to-end runs remain pending. Access and the VM STOP expire at **23:45 IST today**. See [GCP-VM.md](GCP-VM.md) for the deployment snapshot.
 
 ```mermaid
 flowchart LR
-  Fo[Fo / MCP client] -->|Distinct MCP credential| Gateway[HTTPS gateway]
-  Owner[Cloud owner browser] -->|Separate owner session + CSRF| Gateway
-  Gateway ---|Five typed tools; outbound bounded poll| Bridge[Foreground device bridge]
+  Phone[Phone chat] --> Fo[Fo hosted by Wajo]
+  Fo -->|HTTPS MCP + distinct MCP credential| Gateway[Our GCP gateway]
+  Owner[Owner phone browser] -->|Separate owner session + CSRF| Gateway
+  Gateway ---|Typed MCP tools + separate owner relay| Bridge[Awake Mac: foreground outbound bridge]
   Bridge -->|Loopback MCP| Engine[Local engine + journal]
-  Human[Local human interface] -->|Read consent / exact approval| Engine
+  Human[Local human interface] -->|Folder consent + exact session opt-in| Engine
   Engine --> Native[Enumerated adapter]
 ```
 
-The single-owner remote bearer profile pins separate MCP, owner and (when needed) companion credential digests, with one explicit access deadline within 24 hours. Only the owner credential can establish a short-lived Secure HttpOnly browser session; owner mutations need same-origin plus CSRF and never accept a bearer header. MCP cannot approve. Plaintexts are not configured on the server or retained in browser storage. No real credentials are created here. The optional OAuth profile preserves separate audiences/clients/scopes and PKCE, but external-provider/Fo compatibility is unverified and is not a deployment prerequisite.
+The single-owner remote bearer profile pins separate MCP, owner and (when needed) companion credential digests, with one explicit access deadline within 24 hours. Only the owner credential can establish a short-lived Secure HttpOnly browser session; owner mutations need same-origin plus CSRF and never accept a bearer header. MCP cannot approve. Plaintexts are not configured on the server or retained in browser storage. The user generates credentials privately; only digests are handed to deployment. The optional OAuth profile preserves separate audiences/clients/scopes and PKCE, but external-provider/Fo compatibility is unverified and is not a deployment prerequisite.
 
 The default proxy boundary remains loopback. An explicit conventional-host profile permits a `0.0.0.0` private listener and at most 16 exact trusted proxy socket IPs. Forwarded addresses never establish trust; exact Host/Origin and `X-Forwarded-Proto: https` checks remain. There is no wildcard proxy trust.
-The session gateway holds one device, at most 20 minutes, bounded queues, strict tool schemas and single delivery. Lost delivered execution responses are uncertain and never retried. Offline status does not fabricate hardware. The manually started outbound bridge has no reconnect daemon and no command, arbitrary URL, grant or approval operation. Ending a gateway session blocks new work; it cannot cancel a native write already started or revoke the local read lease. That lease remains under the local owner's control.
+The session gateway holds one device, at most 3 hours, bounded queues, strict tool schemas and single delivery. Lost delivered execution responses are uncertain and never retried. Offline status does not fabricate hardware. The manually started outbound bridge has no reconnect daemon, command, arbitrary URL or remote folder-grant operation. Its separate owner envelope permits exact review decisions only after local folder consent and opt-in to the current gateway/device/session. Phone review cannot renew either lease. Normal bridge exit revokes delegated review; a hard kill relies on fixed expiry. Ending a gateway session blocks new work; it cannot cancel a native write already started. The Mac must remain awake throughout the take.
+
+The review extension has six strict MCP tools: `review.snapshot`, `review.prepare`, `review.commit`, `review.verify`, `review.undo`, and `review.read_attachment`. The last returns bounded chunks of exact generated PDF/PPTX files only after separate owner sharing approval. Fo's native email accepts workspace/upload artifact references, so reconstruction of these exact bytes inside Fo and subsequent email delivery still require live acceptance. This is not an unattended all-day workflow.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for bearer handoff, optional OAuth, explicit TLS proxy boundaries, session lifetime and operational limits. These paths are exercised with synthetic identities/devices and an SDK client; real hosting, identity-provider and Fo acceptance are separate checks.
 

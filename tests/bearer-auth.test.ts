@@ -476,7 +476,7 @@ test("a separate companion bearer authenticates only device relay; even cloud ow
       body: { deviceId: "fixture-device", source: "fixture" },
     });
     assert.equal(connected.status, 200);
-    assert.ok(connected.json().expiresAt <= app.identity.clock() + 20 * 60_000);
+    assert.ok(connected.json().expiresAt <= app.identity.clock() + 3 * 60 * 60_000);
     const owner = await app.login();
     assert.equal(
       (

@@ -366,7 +366,7 @@ test("session delivery is single-use, duplicate results are idempotent and expir
       await broker.poll(session.sessionId, aborted.signal),
       undefined,
     );
-    now += 20 * 60_000 + 1;
+    now += 3 * 60 * 60_000 + 1;
     await assert.rejects(broker.inspect());
     await assert.rejects(broker.poll(session.sessionId, aborted.signal));
   } finally {

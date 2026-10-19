@@ -1,4 +1,5 @@
 import { randomUUID, createHash } from "node:crypto";
+import { DEVICE_SESSION_MS } from "../shared/limits.ts";
 import { z } from "zod";
 import type { Express } from "express";
 import { FixError, invariant } from "../core/errors.ts";
@@ -173,7 +174,7 @@ export class SessionBroker implements OwnerService {
   connect(
     deviceId: string,
     source: Mode,
-    authorizationExpiresAt = this.clock() + 20 * 60_000,
+    authorizationExpiresAt = this.clock() + DEVICE_SESSION_MS,
   ) {
     invariant(
       !this.stopping,
@@ -196,7 +197,7 @@ export class SessionBroker implements OwnerService {
     this.session = {
       id: randomUUID(),
       source,
-      expiresAt: Math.min(this.clock() + 20 * 60_000, authorizationExpiresAt),
+      expiresAt: Math.min(this.clock() + DEVICE_SESSION_MS, authorizationExpiresAt),
       lastPollAt: this.clock(),
     };
     return { sessionId: this.session.id, expiresAt: this.session.expiresAt };

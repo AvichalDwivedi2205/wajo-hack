@@ -18,6 +18,43 @@ import { reviewFixture, prepared, finished } from "./support/review.ts";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
+test("three-hour device sessions remain capped by the credential deadline and do not renew", async () => {
+  let now = Date.now();
+  const broker = new SessionBroker("synthetic-device", () => now);
+  try {
+    const started = now;
+    const session = broker.connect("synthetic-device", "fixture");
+    assert.equal(session.expiresAt, started + 3 * 60 * 60_000);
+    now += 3 * 60 * 60_000 + 1;
+    await assert.rejects(broker.inspect(), /absent or expired/);
+    const deadline = now + 35 * 60_000;
+    assert.equal(broker.connect("synthetic-device", "fixture", deadline).expiresAt, deadline);
+  } finally { await broker.shutdown(); }
+});
+
+test("three-hour phone and folder access preserve short plan expiry and exact revocation", async () => {
+  const c = await reviewFixture();
+  let now = Date.now();
+  const phone = new PhoneReview(c.engine, () => now);
+  const link = { sessionId: randomUUID(), origin: "https://phone.fixture.invalid", deviceId: "synthetic-device", expiresAt: now + 3 * 60 * 60_000 };
+  try {
+    await c.engine.grant();
+    phone.register(link); phone.enable(link);
+    now += 2 * 60 * 60_000; c.advance(2 * 60 * 60_000);
+    assert.equal(phone.state().enabled, true);
+    const snapshot = await c.engine.snapshot(), plan = await c.engine.prepare(snapshot.id);
+    await phone.invoke(link.sessionId, { op: "approve", id: plan.id, digest: plan.digest });
+    now += 5 * 60_000 + 1; c.advance(5 * 60_000 + 1);
+    await assert.rejects(c.engine.commit(plan.id), /expired/i);
+    assert.equal(c.engine.status().jobs.length, 0);
+    now += 55 * 60_000; c.advance(55 * 60_000);
+    assert.equal(c.engine.permissionActive, false);
+    assert.equal(phone.state().enabled, false);
+    await assert.rejects(phone.invoke(link.sessionId, { op: "status" }), /unavailable/i);
+    assert.throws(() => phone.register({ ...link, sessionId: randomUUID(), expiresAt: now + 3 * 60 * 60_000 + 5001 }), /bounded foreground session/);
+  } finally { await c.close(); }
+});
+
 test("phone review requires an exact local opt-in and preserves digest, lease, and connection boundaries", async () => {
   const c = await reviewFixture();
   let now = Date.now();

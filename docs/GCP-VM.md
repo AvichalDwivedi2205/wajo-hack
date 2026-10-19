@@ -1,8 +1,21 @@
-# Dedicated GCP VM preparation
+# Dedicated GCP VM: status and provisioning runbook
 
-**Local preparation only. Nothing here provisions, spends, installs a cloud SDK, changes IAM/firewalls, creates credentials or activates a service.** The current environment has no gcloud, configured GCP identity/project or accessible GCP metadata identity. Live deployment and Fo invocation remain unverified.
+## Current deployment snapshot — 2026-10-19 11:40 IST
 
-Use one dedicated Compute Engine Linux VM with systemd, Node **24.19.0**, one Fo Fix process, local Caddy TLS termination, and a separate persistent data disk. Caddy forwards to `127.0.0.1:4310`; port 4310 and Caddy's default loopback admin endpoint must remain private. No load balancer, cluster, managed database, runtime GCP API permission or external OAuth platform is needed. Capacity/pricing have not been measured or approved.
+The original preparation-only description below is historical. An existing dedicated VM, hostname and public TLS are now provisioned through the deployment chat **Verify dedicated deployment project** (`01a14d9c-09e4-7060-9dda-b61cfd7b8025`). Reuse that deployment; do not create another VM or repeat its resource approvals.
+
+- VM `fo-reach-vm-261018`, ID `3011348200142002901`, is running at `35.209.26.89`. Its API-verified automatic STOP is **2026-10-19T18:15:00Z / 23:45 IST today**; automatic restart is disabled.
+- `https://fo-reach.latchgrid.in/offline-credentials.html` returns 200 with normal public TLS. Application routing is active: unauthenticated MCP GET/POST return **401**, requiring the configured credential.
+- The user privately generated separate owner, MCP and companion credentials and supplied their digests. Plaintext values are not in this repository or deployment handoff.
+- Exact source `19b86db0f0bf3f4c5c61bbda942a4c0624400364`, session backend, device `fo-reach-demo-mac-20261019`, expiry above, existing-service/VM restart and personal Fo registration are approved. Application activation and VM/service restart checks passed at 06:08:04 UTC / 11:38 IST in the existing deployment chat. Installed canonical environment SHA-256 is `b3d39586b501659e65f5f6353e8e46ae6bc6209a9b5200945e56bfae5f37ddf5`, root-owned0600; startup SHA-256 is `5e2b3ffec6dbacf12ea7c4008d63d2f4a2205a849a9301e4af9f0e170f9a623c`.
+- Preserve the retained 20 GiB disk, existing TCP443-only public ingress, no runtime service account and USD100 ceiling. New resources or broader access are outside this activation scope.
+- Actual Fo personal registration succeeded after the earlier initialize404 failure. Private MCP-token entry, a connected Mac session and genuine Fo end-to-end acceptance remain pending. **Zero complete live runs have passed.** A helper-page response or engineering test is not a demo success.
+
+## Historical/new-environment provisioning runbook
+
+The remaining numbered steps describe how a new deployment must be prepared. They are not evidence that the current environment lacks resources, and they do not require repeating approvals already supplied for the exact existing deployment. Scripts in this repository do not themselves provision resources or generate credentials.
+
+Use one dedicated Compute Engine Linux VM with systemd, Node **24.19.0**, one Fo Fix process, local Caddy TLS termination, and a separate persistent data disk. Caddy forwards to `127.0.0.1:4310`; port 4310 and Caddy's default loopback admin endpoint must remain private. No load balancer, cluster, managed database, runtime GCP API permission or external OAuth platform is needed. The original capacity/pricing discussion was preparation only; the current bounded resource approval is recorded above.
 
 ## 1. Read-only preflight — existing authorized operator environment
 
@@ -67,6 +80,6 @@ The Mac may remain offline during cloud fixture acceptance. Real device sessions
 
 ## 5. Offline evidence and teardown
 
-Run `node deploy/gcp/offline-check.mjs` after a local build on Node 24.19.0. It starts only ephemeral loopback fixture processes, checks authentication/forwarding boundaries and restart persistence, parses a unit with local executable paths, and checks a missing mount is refused. It does not activate systemd, mount disks, install Caddy, contact GCP/DNS/CAs or use real credentials. If Caddy is already installed it performs adaptation only. [Recorded results](gcp-offline-checks.json) explicitly identify remaining VM/TLS checks. The existing full application suite remains 56 unit/API and seven browser tests; no runtime product code changed in this preparation pass.
+Run `node deploy/gcp/offline-check.mjs` after a local build on Node 24.19.0. It starts only ephemeral loopback fixture processes, checks authentication/forwarding boundaries and restart persistence, parses a unit with local executable paths, and checks a missing mount is refused. It does not activate systemd, mount disks, install Caddy, contact GCP/DNS/CAs or use real credentials. If Caddy is already installed it performs adaptation only. [Recorded results](gcp-offline-checks.json) describe that historical preparation pass. The reviewed 2026-10-19 application source passed its build, **176 unit/API/relay tests and 39 browser tests**; these are engineering checks, not Fo demo successes.
 
 Teardown is separately approval-gated: end access, stop services cleanly, remove the Fo connection/credential only with account authorization, and revoke the configured credentials. Inventory the exact VM, address, disk, firewall rule, DNS record and any backups created for this deployment. Delete only approved owned resources; preserve/export the journal first if retention was requested. Stopping a VM is not a complete teardown or a cost guarantee. Release/delete the approved address and retained disks only when explicitly authorized; do not alter shared networking, IAM or unrelated resources. Verify the final resource inventory and retained storage against the approved plan.

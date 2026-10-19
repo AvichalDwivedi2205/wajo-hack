@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { DEVICE_SESSION_MS } from "../shared/limits.ts";
 import {
   lstat,
   mkdir,
@@ -202,7 +203,7 @@ export class ReviewEngine implements ReviewAgent {
       "REVIEW_REVOKED",
       "File access was revoked while the scope was being checked.",
     );
-    this.lease = { until: this.clock() + 20 * 60_000, scope, epoch: operation };
+    this.lease = { until: this.clock() + DEVICE_SESSION_MS, scope, epoch: operation };
     return this.status();
   }
   revoke() {
