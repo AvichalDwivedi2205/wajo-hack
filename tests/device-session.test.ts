@@ -50,6 +50,128 @@ async function localCompanion() {
   };
 }
 
+for (const failure of ["network", "closing-poll"] as const) test(`bridge survives ${failure} without reconnecting or repeating an execution`, async () => {
+  const local = await localCompanion(), controller = new AbortController();
+  let connects = 0, polls = 0, results = 0;
+  const sessionId = randomUUID(), expiresAt = Date.now() + 60_000;
+  try {
+    await runDeviceSession({
+      origin: "https://fix.fixture.invalid", accessToken: "synthetic-test-only-token", deviceId: "fixture-device",
+      localPort: local.port, signal: controller.signal,
+      fetcher: async (input, init) => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/session/connect") { connects++; return Response.json({ sessionId, expiresAt }); }
+        assert.equal(JSON.parse(String(init?.body)).sessionId, sessionId);
+        if (path === "/session/poll") {
+          if (++polls === 1) {
+            if (failure === "network") throw new TypeError("synthetic transient fetch failure");
+            return Response.json({ code: "POLL_IN_PROGRESS" }, { status: 409 });
+          }
+          return Response.json({ job: { id: randomUUID(), request: { tool: "fo_fix_status", args: {} } } });
+        }
+        assert.equal(path, "/session/result"); results++; controller.abort();
+        return Response.json({ accepted: true });
+      },
+    });
+    assert.equal(connects, 1); assert.equal(polls, 2); assert.equal(results, 1);
+    assert.equal(local.engine.status().actions.length, 0);
+  } finally { await local.close(); }
+});
+
+test("manual resume confirms original session before connected callback, preserves its deadline and processes first queued job", async () => {
+  const local = await localCompanion(), controller = new AbortController();
+  const receipt = { sessionId: randomUUID(), expiresAt: Date.now() + 60_000 };
+  const paths: string[] = []; let advertised = false;
+  try {
+    await runDeviceSession({
+      origin: "https://fix.fixture.invalid", accessToken: "synthetic-test-only-token", deviceId: "fixture-device",
+      localPort: local.port, signal: controller.signal, resumeConnection: receipt,
+      onConnected: (_source, expiresAt, sessionId) => {
+        assert.equal(expiresAt, receipt.expiresAt); assert.equal(sessionId, receipt.sessionId);
+        assert.deepEqual(paths, ["/session/poll"]); advertised = true;
+      },
+      fetcher: async (input, init) => {
+        const path = new URL(String(input)).pathname; paths.push(path);
+        assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer synthetic-test-only-token");
+        assert.equal(JSON.parse(String(init?.body)).sessionId, receipt.sessionId);
+        if (path === "/session/poll") return Response.json({ job: { id: randomUUID(), request: { tool: "fo_fix_status", args: {} } } });
+        assert.equal(path, "/session/result"); controller.abort(); return Response.json({ accepted: true });
+      },
+    });
+    assert.equal(advertised, true); assert.deepEqual(paths, ["/session/poll", "/session/result"]);
+    assert.equal(local.engine.status().permission.active, false); assert.equal(local.engine.status().plans.length, 0);
+  } finally { await local.close(); }
+});
+
+test("manual resume crosses real authenticated gateway and cannot renew the retained session", async () => {
+  const identity = await identityFixture("session"), broker = new SessionBroker(identity.config.deviceId!);
+  const receipt = broker.connect(identity.config.deviceId!, "fixture", Date.now() + 60_000);
+  const gateway = await remoteFixture(identity, broker), local = await localCompanion(), controller = new AbortController();
+  let connects = 0;
+  const status = broker.status(); // Queue a read, so the resume probe has an actual first job.
+  const bridge = runDeviceSession({ origin: identity.config.origin, accessToken: await identity.token("companion"),
+    deviceId: identity.config.deviceId!, localPort: local.port, signal: controller.signal, resumeConnection: receipt,
+    fetcher: (input, init) => { if (new URL(String(input)).pathname === "/session/connect") connects++; return gateway.fetcher(input, init); },
+  }).catch(() => {});
+  try {
+    assert.equal((await status).deviceSession?.connected, true);
+    assert.equal(connects, 0); assert.deepEqual(broker.attachmentSession(), receipt);
+    assert.equal(local.engine.status().permission.active, false);
+  } finally { controller.abort(); await bridge; await gateway.close(); await local.close(); }
+});
+
+test("poll retries stop at original deadline and permanent rejection; resume rejection never creates another session", async () => {
+  for (const reason of ["deadline", "unauthorized", "resume-unavailable"] as const) {
+    const local = await localCompanion(); let now = Date.now(), calls = 0, advertised = false;
+    const receipt = { sessionId: randomUUID(), expiresAt: now + 1000 };
+    try {
+      await assert.rejects(runDeviceSession({
+        origin: "https://fix.fixture.invalid", accessToken: "synthetic-test-only-token", deviceId: "fixture-device",
+        localPort: local.port, signal: new AbortController().signal, clock: () => now, resumeConnection: receipt,
+        onConnected: () => { advertised = true; },
+        fetcher: async input => {
+          assert.equal(new URL(String(input)).pathname, "/session/poll"); calls++;
+          if (reason === "deadline") { now = receipt.expiresAt + 1; throw new TypeError("synthetic deadline failure"); }
+          return Response.json({ code: reason === "unauthorized" ? "UNAUTHORIZED" : "DEVICE_SESSION_UNAVAILABLE" }, { status: reason === "unauthorized" ? 401 : 503 });
+        },
+      }));
+      assert.equal(calls, 1); assert.equal(advertised, false); assert.equal(local.engine.status().actions.length, 0);
+    } finally { await local.close(); }
+  }
+});
+
+test("consecutive poll failures are bounded without creating a replacement session", { timeout: 20_000 }, async () => {
+  const local = await localCompanion(), retries: number[] = []; let calls = 0;
+  try {
+    await assert.rejects(runDeviceSession({
+      origin: "https://fix.fixture.invalid", accessToken: "synthetic-test-only-token", deviceId: "fixture-device",
+      localPort: local.port, signal: new AbortController().signal,
+      resumeConnection: { sessionId: randomUUID(), expiresAt: Date.now() + 60_000 },
+      onPollRetry: attempt => { retries.push(attempt); },
+      fetcher: async input => { assert.equal(new URL(String(input)).pathname, "/session/poll"); calls++; throw new TypeError("synthetic persistent outage"); },
+    }));
+    assert.equal(calls, 5); assert.deepEqual(retries, [1, 2, 3, 4]);
+  } finally { await local.close(); }
+});
+
+test("uncertain result delivery never repeats an approved local execution", async () => {
+  const local = await localCompanion(); let results = 0, polls = 0;
+  try {
+    local.engine.grantPermission(); const plan = await local.engine.propose("switch-output", "fixture-speakers"); await local.engine.approve(plan.id, plan.digest);
+    await assert.rejects(runDeviceSession({
+      origin: "https://fix.fixture.invalid", accessToken: "synthetic-test-only-token", deviceId: "fixture-device",
+      localPort: local.port, signal: new AbortController().signal,
+      fetcher: async input => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/session/connect") return Response.json({ sessionId: randomUUID(), expiresAt: Date.now() + 60_000 });
+        if (path === "/session/poll") { polls++; return Response.json({ job: { id: randomUUID(), request: { tool: "fo_fix_execute_approved", args: { planId: plan.id } } } }); }
+        assert.equal(path, "/session/result"); results++; throw new TypeError("synthetic lost acknowledgement");
+      },
+    }));
+    assert.equal(polls, 1); assert.equal(results, 1); assert.equal(local.engine.status().actions.length, 1);
+  } finally { await local.close(); }
+});
+
 for (const authMode of ["oauth", "bearer"] as const)
   test(
     `${authMode}: authenticated remote MCP relay preserves local inspection consent, exact approval, verification and separately approved undo`,
