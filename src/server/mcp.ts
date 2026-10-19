@@ -4,7 +4,7 @@ import type { AgentService } from "../core/service.ts";
 import { FixError } from "../core/errors.ts";
 import { repairRequest } from "../shared/requests.ts";
 import { MAX_MCP_RESULT_BYTES } from "../shared/limits.ts";
-import { reviewId, reviewPrepare } from "../review/contracts.ts";
+import { reviewId, reviewPrepare, reviewAttachment } from "../review/contracts.ts";
 import { appOpenRequest, appPlanId } from "../apps/contracts.ts";
 
 export function createMcpServer(engine: AgentService) {
@@ -154,6 +154,10 @@ export function createMcpServer(engine: AgentService) {
   );
   if (engine.review) {
     const review = engine.review;
+    server.registerTool("review.read_attachment", {
+      description: "Read one 64 KiB base64 chunk of a verified generated PDF/PPTX only after separate human attachment-sharing approval. Start offset 0, use nextOffset until totalBytes, reconstruct original bytes in your own workspace, verify full SHA-256, then obtain that workspace's artifact ID for email. Never regenerate or alter the deck. A share expires within five minutes and grants no email/call authorization. Report binary transfer as unverified until recipient attachment hashes match.",
+      inputSchema: reviewAttachment, annotations: read,
+    }, ({ id, name, offset }) => call(() => review.readAttachment(id, name, offset)));
     server.registerTool(
       "review.snapshot",
       {
@@ -168,7 +172,7 @@ export function createMcpServer(engine: AgentService) {
       "review.prepare",
       {
         description:
-          "Prepare exactly three slides and an exact unique output destination from a snapshot. No file writes. Ask the person to approve locally; the cloud cannot approve. Synthetic HTML/PDF previews are not native Keynote evidence.",
+          "Prepare exactly three slides and an exact unique output destination from a snapshot. No file writes. Ask the person to approve in the Mac review interface or their separately authenticated phone owner interface after explicit Mac opt-in. You cannot approve. Synthetic HTML/PDF previews are not native Keynote evidence.",
         inputSchema: reviewPrepare,
         annotations: { ...read, readOnlyHint: false },
       },
@@ -178,7 +182,7 @@ export function createMcpServer(engine: AgentService) {
       "review.commit",
       {
         description:
-          "Consume an exact unexpired local approval tied to fresh source hashes and output destination. Return a journaled bounded asynchronous job immediately; poll review.verify. Never automatically retry an uncertain commit. No PDF/image bytes in tool results.",
+          "Consume an exact unexpired human approval tied to fresh source hashes and output destination. Phone approvals also require the same explicitly enabled Mac connection and file lease. Return a journaled bounded asynchronous job immediately; poll review.verify. Never automatically retry an uncertain commit. No PDF/image bytes in tool results.",
         inputSchema: reviewId,
         annotations: {
           readOnlyHint: false,
@@ -202,7 +206,7 @@ export function createMcpServer(engine: AgentService) {
       "review.undo",
       {
         description:
-          "Propose removing only unchanged generated artifacts. Requires a NEW exact local approval and review.commit. Changed or unrelated files cause refusal; originals are never deleted.",
+          "Propose removing only unchanged generated artifacts. Requires a NEW exact human review approval and review.commit. Changed or unrelated files cause refusal; originals are never deleted.",
         inputSchema: reviewId,
         annotations: { ...read, readOnlyHint: false },
       },

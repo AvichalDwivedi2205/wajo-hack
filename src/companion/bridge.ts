@@ -14,6 +14,7 @@ export async function runDeviceSession(options: {
   fetcher?: typeof fetch;
   clock?: () => number;
   onConnected?: (source: Mode, expiresAt: number) => void;
+  requestPhoneReview?: boolean;
 }) {
   const origin = new URL(options.origin);
   invariant(
@@ -68,6 +69,22 @@ export async function runDeviceSession(options: {
     name: "fo-fix-device-session",
     version: "0.1.0",
   });
+  let sessionId: string | undefined;
+  const localOrigin = `http://127.0.0.1:${options.localPort}`;
+  const ownerPost = async (path: string, data: unknown) => {
+    const response = await fetch(new URL(`/api/review/phone/${path}`, localOrigin), {
+      method: "POST", headers: { "Content-Type": "application/json", Origin: localOrigin },
+      body: JSON.stringify(data), redirect: "error",
+      signal: AbortSignal.timeout(15_000),
+    });
+    const result = await boundedJson(response, 480 * 1024);
+    if (!response.ok) {
+      const error = result as { code?: unknown; message?: unknown };
+      throw new FixError(typeof error.code === "string" && /^[A-Z_]{1,64}$/.test(error.code) ? error.code : "PHONE_REVIEW_REJECTED",
+        typeof error.message === "string" && error.message.length <= 512 ? error.message : "The local phone-review gate rejected this request. Review the Mac interface.", response.status);
+    }
+    return result;
+  };
   try {
     await client.connect(
       new StreamableHTTPClientTransport(
@@ -89,6 +106,7 @@ export async function runDeviceSession(options: {
     const connected = relayConnection.parse(
       await post("/session/connect", { deviceId: options.deviceId, source }),
     );
+    sessionId = connected.sessionId;
     invariant(
       connected.expiresAt > clock() &&
         connected.expiresAt <= clock() + 20 * 60_000 + 5000,
@@ -96,6 +114,9 @@ export async function runDeviceSession(options: {
       "The gateway returned an invalid bounded session.",
       502,
     );
+    if (options.requestPhoneReview) await ownerPost("link", {
+      ...connected, origin: origin.origin, deviceId: options.deviceId,
+    });
     options.onConnected?.(source, connected.expiresAt);
     while (!options.signal.aborted && clock() < connected.expiresAt) {
       const { job } = relayPoll.parse(
@@ -105,11 +126,18 @@ export async function runDeviceSession(options: {
       // Never start another local tool call once that end is observable here.
       if (options.signal.aborted || clock() >= connected.expiresAt) break;
       if (!job) continue;
-      // The shared schema admits no URLs, owner commands, shells or arbitrary tools.
-      const result = await client.callTool({
-        name: job.request.tool,
-        arguments: job.request.args,
-      });
+      // Machine calls stay in MCP. Owner review uses a distinct, locally opted-in
+      // path with no grant, execute, shell, arbitrary file or URL operation.
+      let result;
+      if ("ownerRequest" in job) {
+        try {
+          invariant(options.requestPhoneReview, "LOCAL_REVIEW_REQUIRED", "Phone review was not requested by this foreground launcher.", 403);
+          const value = await ownerPost("relay", { sessionId, request: job.ownerRequest });
+          result = { structuredContent: { result: value } };
+        } catch (error) {
+          result = { isError: true, content: [{ type: "text", text: JSON.stringify(error instanceof FixError ? { code: error.code, message: error.message, status: error.status } : { code: "PHONE_REVIEW_UNCERTAIN", message: "Phone review did not return a result. Check its current state before another action.", status: 503 }) }] };
+        }
+      } else result = await client.callTool({ name: job.request.tool, arguments: job.request.args });
       await post("/session/result", {
         sessionId: connected.sessionId,
         jobId: job.id,
@@ -117,6 +145,7 @@ export async function runDeviceSession(options: {
       });
     }
   } finally {
+    if (options.requestPhoneReview && sessionId) await ownerPost("end", { sessionId }).catch(() => {});
     await client.close();
   }
 }

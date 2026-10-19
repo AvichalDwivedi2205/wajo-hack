@@ -28,6 +28,8 @@ export class ReviewEngine implements ReviewAgent {
   private lease?: { until: number; scope: string; epoch: number };
   private epoch = 0;
   private snapshots = new Map<string, ReviewSnapshot>();
+  private approvalGuards = new Map<string, () => void>();
+  private attachmentShares = new Map<string, { epoch: number; until: number; digest: string; guard?: () => void }>();
   private flight: Promise<unknown> = Promise.resolve();
   private workers = new Map<
     string,
@@ -89,6 +91,8 @@ export class ReviewEngine implements ReviewAgent {
     );
     return this.lease!;
   }
+  get permissionEpoch() { return this.epoch; }
+  get permissionActive() { return !!this.lease && this.lease.until > this.clock() && !this.stopping; }
   private async read<T>(operation: () => Promise<T>): Promise<T> {
     invariant(
       this.readers < 2 || this.waitingReaders.length < 24,
@@ -157,6 +161,7 @@ export class ReviewEngine implements ReviewAgent {
       },
       plans: this.data.plans.slice(-8).reverse(),
       jobs: this.data.jobs.slice(-8).reverse(),
+      attachmentShares: this.data.jobs.slice(-8).filter(job => job.state === "succeeded").map(job => this.attachmentShare(job)),
       blockers: this.outputKind === "pptx" ? [
         "This route creates an editable PowerPoint deck and PDF on this Mac through OOXML, system Quick Look and Chrome print. No Keynote export or PowerPoint edit/resave is claimed.",
         "Actual visual sign-off and three live Fo round trips remain separate acceptance gates. Keynote cold-start acceptance is not passed by this alternative.",
@@ -204,6 +209,8 @@ export class ReviewEngine implements ReviewAgent {
     this.epoch++;
     this.lease = undefined;
     this.snapshots.clear();
+    this.approvalGuards.clear();
+    this.attachmentShares.clear();
     for (const p of this.data.plans)
       if (["pending", "approved"].includes(p.state)) p.state = "denied";
     this.store.save();
@@ -328,6 +335,7 @@ export class ReviewEngine implements ReviewAgent {
   }
   private pending(p: ReviewPlan, state: string) {
     this.allowed();
+    if (state === "approved") this.approvalGuards.get(p.id)?.();
     invariant(
       p.state === state &&
         Date.parse(p.expiresAt) > this.clock() &&
@@ -336,8 +344,9 @@ export class ReviewEngine implements ReviewAgent {
       "Review approval is missing, expired, consumed or changed.",
     );
   }
-  async approve(id: string, digest: string) {
+  async approve(id: string, digest: string, guard?: () => void) {
     return this.serial(async () => {
+      guard?.();
       const p = this.plan(id),
         epoch = this.allowed().epoch;
       this.pending(p, "pending");
@@ -356,6 +365,8 @@ export class ReviewEngine implements ReviewAgent {
         "REVIEW_REVOKED",
         "Access changed while approval was being checked.",
       );
+      guard?.();
+      if (guard) this.approvalGuards.set(p.id, guard);
       p.state = "approved";
       this.store.save();
       return structuredClone(p);
@@ -431,11 +442,13 @@ export class ReviewEngine implements ReviewAgent {
               "REVIEW_REVOKED",
               "Review access ended before the output directory write.",
             );
+            this.approvalGuards.get(p.id)?.();
             await mkdir(p.destination, { mode: 0o700 });
             await safePath(this.root, localName(this.root, p.destination));
             const outputIdentity = await lstat(p.destination),
               lease = this.allowed();
             const boundary = async () => {
+              this.approvalGuards.get(p.id)?.();
               invariant(
                 this.allowed().epoch === epoch && !controller.signal.aborted,
                 "REVIEW_REVOKED",
@@ -758,6 +771,7 @@ export class ReviewEngine implements ReviewAgent {
           this.root,
           `${localName(this.root, p.destination)}/${artifact.name}`,
         );
+        this.approvalGuards.get(p.id)?.();
         await unlink(path);
         job.artifacts = job.artifacts.filter((a) => a.name !== artifact.name);
         this.store.save();
@@ -777,6 +791,44 @@ export class ReviewEngine implements ReviewAgent {
   }
   image(role: "before" | "proposed", digest: string) {
     return this.read(() => this.readImage(role, digest));
+  }
+  private attachmentDigest(job: ReviewJob) {
+    return sha256(JSON.stringify({ id: job.id, artifacts: job.artifacts.filter(a => ["review.pdf", "review.pptx"].includes(a.name)) }));
+  }
+  private attachmentShare(job: ReviewJob) {
+    const share = this.attachmentShares.get(job.id);
+    let approved = !!share && share.epoch === this.epoch && share.until > this.clock() && this.permissionActive;
+    if (approved) { try { share!.guard?.(); } catch { approved = false; } }
+    return { id: job.id, digest: this.attachmentDigest(job),
+      approved,
+      ...(share ? { expiresAt: new Date(share.until).toISOString() } : {}) };
+  }
+  async approveAttachments(id: string, digest: string, guard?: () => void) {
+    guard?.();
+    const epoch = this.allowed().epoch, job = await this.verify(id);
+    const files = job.artifacts.filter(a => ["review.pdf", "review.pptx"].includes(a.name));
+    invariant(job.state === "succeeded" && (job.synthetic || job.verification?.visualApproved) && files.length > 0 &&
+      files.every(file => file.bytes > 0 && file.bytes <= 3 * 1024 * 1024) && this.attachmentDigest(job) === digest && this.allowed().epoch === epoch,
+      "ATTACHMENT_APPROVAL", "Check actual rendered pages, then approve these exact generated attachment hashes. Limit: 3 MiB per file.", 403);
+    guard?.();
+    this.attachmentShares.set(id, { epoch, digest, until: Math.min(this.allowed().until, this.clock() + 5 * 60_000), guard });
+    return this.attachmentShare(this.job(id));
+  }
+  async readAttachment(id: string, name: "review.pdf" | "review.pptx", offset: number) {
+    const share = this.attachmentShares.get(id);
+    const guard = () => {
+      invariant(share && this.attachmentShares.get(id) === share && share.epoch === this.allowed().epoch &&
+        share.until > this.clock() && this.attachmentDigest(this.job(id)) === share.digest,
+        "ATTACHMENT_APPROVAL_REQUIRED", "The owner must explicitly allow Fo to read this exact generated job's attachments. Sharing does not authorize email or calls.", 403);
+      share!.guard?.();
+    };
+    guard();
+    const bytes = await this.artifact(id, name);
+    guard();
+    invariant(Number.isInteger(offset) && offset >= 0 && offset % 65536 === 0 && offset < bytes.length && bytes.length <= 3 * 1024 * 1024,
+      "ATTACHMENT_RANGE", "Use 64 KiB chunk offsets within the approved attachment.", 400);
+    const nextOffset = Math.min(offset + 65536, bytes.length);
+    return { id, name, sha256: sha256(bytes), totalBytes: bytes.length, offset, nextOffset, base64: bytes.subarray(offset, nextOffset).toString("base64") };
   }
   private async readImage(role: "before" | "proposed", digest: string) {
     const lease = this.allowed();
@@ -828,7 +880,8 @@ export class ReviewEngine implements ReviewAgent {
     );
     return bytes;
   }
-  async visualApprove(id: string) {
+  async visualApprove(id: string, guard: () => void = () => {}) {
+    guard();
     const epoch = this.allowed().epoch,
       j = await this.verify(id);
     invariant(
@@ -841,6 +894,7 @@ export class ReviewEngine implements ReviewAgent {
       "REVIEW_VISUAL",
       "Synthetic renders cannot certify native hardware.",
     );
+    guard();
     this.job(id).verification!.visualApproved = true;
     this.store.save();
     return this.verify(id);

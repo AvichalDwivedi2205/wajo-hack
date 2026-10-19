@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { randomUUID } from "node:crypto";
 
 test.beforeEach(async ({ request, baseURL }) => {
   expect(
@@ -12,6 +13,34 @@ test.beforeEach(async ({ request, baseURL }) => {
       })
     ).ok(),
   ).toBe(true);
+});
+test("mobile layout requires local folder consent and a separate exact-session phone opt-in", async ({ page, request, baseURL }) => {
+  const link = { sessionId: randomUUID(), origin: "https://phone-review.fixture.invalid", deviceId: "synthetic-browser-device", expiresAt: Date.now() + 60_000 };
+  expect((await request.post("/api/review/phone/link", { headers: { Origin: baseURL! }, data: link })).ok()).toBe(true);
+  try {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Client review", exact: true }).click();
+    const consent = page.getByRole("checkbox", { name: "I allow owner phone review for this exact gateway, device and session." }),
+      enable = page.getByRole("button", { name: "Enable this phone review session" });
+    await expect(consent).toBeDisabled();
+    await expect(enable).toBeDisabled();
+    await page.getByRole("button", { name: "Allow these three review folders" }).click();
+    await expect(consent).toBeEnabled();
+    await expect(enable).toBeDisabled();
+    await consent.check();
+    await enable.click();
+    await expect(page.getByRole("button", { name: "Stop phone review and revoke file access" })).toBeVisible();
+    expect((await (await request.get("/api/review")).json()).phoneReview.enabled).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.getByRole("button", { name: "Stop phone review and revoke file access" }).click();
+    await expect(consent).toBeDisabled();
+    const status = await (await request.get("/api/review")).json();
+    expect(status.phoneReview.enabled).toBe(false);
+    expect(status.permission.active).toBe(false);
+  } finally {
+    await request.post("/api/review/phone/end", { headers: { Origin: baseURL! }, data: { sessionId: link.sessionId } });
+  }
 });
 async function openReview(page: import("@playwright/test").Page) {
   await page.goto("/");
@@ -117,6 +146,14 @@ test("client-review preview, approval-only SDK execution, three rendered pages a
           ),
       )
       .toBe(true);
+    const shareButton = page.getByRole("button", { name: "Allow Fo to read generated attachments" });
+    await expect(shareButton).toBeDisabled();
+    const generated = (result.structuredContent as any).result;
+    expect((await client.callTool({ name: "review.read_attachment", arguments: { id: generated.id, name: "review.pdf", offset: 0 } })).isError).toBe(true);
+    await page.getByRole("checkbox", { name: "I allow Fo to read these exact generated attachment hashes." }).check();
+    await shareButton.click();
+    await expect(page.getByText("Fo may read these exact attachments until", { exact: false })).toBeVisible();
+    expect((await client.callTool({ name: "review.read_attachment", arguments: { id: generated.id, name: "review.pdf", offset: 0 } })).isError).not.toBe(true);
     await page.getByRole("button", { name: "Review artifact removal" }).click();
     await expect(
       page.getByRole("heading", { name: "Review removal of generated copies" }),

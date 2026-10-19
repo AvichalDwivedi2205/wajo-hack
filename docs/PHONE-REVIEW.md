@@ -1,0 +1,28 @@
+# Bounded owner phone review
+
+This is prepared source, not proof of deployment, a physical-phone run, Fo execution or delivery. It does not activate hosting, generate credentials, start a companion or change existing permissions automatically.
+
+The vacation demo requires a Mac that is awake and already connected. Before the take, the user starts the approved foreground companion and an approved device connection with `npm run companion:connect -- --phone-review`. The three role credentials keep their existing private handoff. This flag registers the current gateway origin, device ID, session ID and expiry with the loopback review interface; registration alone grants nothing.
+
+On the Mac, the user allows the three displayed review folders, reviews the exact connection and selects **I allow owner phone review for this exact gateway, device and session**, then **Enable this phone review session**. This delegates owner review for that existing file lease and connection only. It expires at the earlier lease/session deadline, at most 20 minutes, and cannot renew itself. Stopping the connection normally revokes enabled review access. A killed process cannot run cleanup; the fixed deadlines still apply.
+
+The user then signs into the approved HTTPS gateway from the phone with the separate owner credential. This short-lived Secure HttpOnly owner session and CSRF token are required for approvals. Fo receives only its MCP credential. Fo can inspect and prepare through MCP after folder consent; it cannot approve. The phone shows source hashes, slide text, comparison images, exact destination, digest and proposal expiry. **Approve review for Fo** only records approval. Fo must call `review.commit`, then poll `review.verify`. Undo requires another proposal and exact approval.
+
+Phone owner routes support only status, exact approval/decline, revocation, visual sign-off, separate attachment-sharing approval and fixed preview/download names. They use a separate strict owner request envelope in the existing bounded outbound connection. No folder grant/renewal, audio/app approval, execution, arbitrary path, URL or shell operation exists in this envelope. Machine authentication cannot access owner APIs, and owner requests are not MCP tools. The Mac rechecks local opt-in, connection identity, permission generation and expiry immediately before approval and before consuming it for a write. Revocation invalidates pending and approved plans and attachment shares. An already-started export may finish its bounded work and verification.
+
+Owner preview/download bytes are limited to 256 KiB per file, encoded within the existing 512 KiB session-result cap. Only the two selected source images and recorded `review.pdf`, `review.pptx`, and `page-1.png` through `page-3.png` are admitted; generated files retain existing inventory/hash checks. Larger owner previews fail explicitly.
+
+After checking actual rendered pages, the owner separately approves **Allow Fo to read generated attachments**, showing exact PDF/PPTX hashes and a sharing digest. Only then does `review.read_attachment` return 64 KiB base64 chunks for that generated job. Each file is limited to 3 MiB; the pair fits the 6 MiB total email limit reported by Fo's live capability preflight. Shares expire within five minutes or the remaining lease/phone session and cannot survive restart/revocation. Every read rechecks file inventory, hash, lease and the approval's connection guard. This is the only agent binary-transfer operation; it cannot read original source documents or arbitrary paths.
+
+Fo's preflight reports that `send_wajo_email`/`create_draft` accept `attachment_artifact_ids` or uploaded-session `attachment_file_ref_ids`, up to ten files and 6 MiB total. They accept neither raw base64 nor URLs. The proposed bridge is for Fo to reconstruct the exact approved chunks in its own workspace, check the full SHA-256, obtain workspace artifact IDs and attach those files. Fo must preserve bytes and must not regenerate the deck. This is a source-reported contract and an untested live bridge, not successful email delivery. Separate recipient, exact message and call-script approval are still required.
+
+## Acceptance before filming
+
+- Preserve original fixture/source hashes and prior failed-run evidence.
+- Approve exact reviewed source, actual role digests, origin, backend, device, expiry, hosting extension and restart before deployment. Use the existing deployment chat.
+- Demonstrate the owner login and preview on a physical phone. Verify wrong-role, unapproved, expired, revoked, changed-source and replay refusals.
+- Resolve Fo's actual attachment ingestion contract; test exact attachment bytes/hashes at the consenting recipient. The phone download path alone does not prove this.
+- Run three consecutive genuine Fo → MCP → Mac → Fo presentation/delivery/call flows, retaining attempts, failures, tool traces and receipts. Engineering SDK/browser tests are not successful Fo demo runs.
+- Record one unedited key-action take; disclose synthetic data, fixed three-slide recipe, preconnected Mac, local preflight consent and bounded phone approval. No unattended all-day claim.
+
+If phone review fails acceptance, disclose local approval in the take or use a separately approved cloud workflow. Do not hide Mac actions or bypass existing consent.

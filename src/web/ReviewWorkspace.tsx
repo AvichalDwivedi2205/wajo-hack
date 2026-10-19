@@ -23,11 +23,13 @@ export function ReviewWorkspace({ request }: { request: Request }) {
   const [snapshot, setSnapshot] = useState<ReviewSnapshot>();
   const [plan, setPlan] = useState<ReviewPlan>();
   const [approved, setApproved] = useState(false);
+  const [phoneConsent, setPhoneConsent] = useState(false);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [revoking, setRevoking] = useState(false);
   const actions = useRef(0);
   const [visual, setVisual] = useState<Record<string, boolean>>({});
+  const [shareConsent, setShareConsent] = useState<Record<string, boolean>>({});
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
   const imageContextRef = useRef("");
   const [now, setNow] = useState(Date.now());
@@ -42,7 +44,7 @@ export function ReviewWorkspace({ request }: { request: Request }) {
     if (n < last.current || access !== actions.current) return;
     last.current = n;
     setStatus(s);
-    if (s.authority !== "here" || !s.plans) return;
+    if (!["here", "phone"].includes(s.authority) || !s.plans) return;
     const eligible = s.plans.find(
       (p) =>
         ["pending", "approved"].includes(p.state) &&
@@ -92,7 +94,10 @@ export function ReviewWorkspace({ request }: { request: Request }) {
     }
   }
   const local =
-    status?.authority === "here" ? (status as ReviewStatus) : undefined;
+    status && ["here", "phone"].includes(status.authority) ? (status as ReviewStatus) : undefined;
+  const onPhone = status?.authority === "phone";
+  const phoneLink = local?.phoneReview?.link;
+  useEffect(() => setPhoneConsent(false), [phoneLink?.sessionId, local?.phoneReview?.enabled]);
   const permitted =
     !revoking &&
     local?.permission.active &&
@@ -201,11 +206,12 @@ export function ReviewWorkspace({ request }: { request: Request }) {
         </section>
       ) : !local ? (
         <section className="settings-card">
-          <h2>Approvals stay on the Mac.</h2>
+          <h2>Enable this phone session on the Mac.</h2>
           <p>
-            Open the local companion to allow the three folders, review source
-            evidence and approve the exact copy. Cloud or phone approval is
-            unavailable.
+            Allow the three review folders, then explicitly enable phone review
+            for the named foreground gateway session. After that setup, sign in
+            here with your separate owner credential to approve exact slides.
+            Phone review cannot grant or renew Mac file access.
           </p>
         </section>
       ) : (
@@ -235,6 +241,7 @@ export function ReviewWorkspace({ request }: { request: Request }) {
               Revoking blocks new jobs. A native export already started may
               finish; verify its artifacts locally.
             </p>
+            {onPhone && <p role="status">Phone approval is enabled for this bounded session. Folder consent was granted on the Mac and cannot be extended here.</p>}
             <button
               className="secondary"
               disabled={revoking}
@@ -242,7 +249,7 @@ export function ReviewWorkspace({ request }: { request: Request }) {
             >
               Revoke file access
             </button>
-            {!permitted ? (
+            {!permitted && !onPhone ? (
               <button
                 className="primary"
                 disabled={busy || revoking}
@@ -285,6 +292,21 @@ export function ReviewWorkspace({ request }: { request: Request }) {
               </div>
             )}
           </section>
+          {!onPhone && phoneLink && (
+            <section className="settings-card">
+              <h2>Phone review for one foreground session</h2>
+              <p>Allow your authenticated owner browser to view these sources, preview generated files, approve or decline exact plans and revoke review access. Fo cannot approve. No email or call is authorized by this setting.</p>
+              <p>Gateway <code>{phoneLink.origin}</code><br />Device <code>{phoneLink.deviceId}</code><br />Session <code>{phoneLink.sessionId}</code><br />Ends {new Date(phoneLink.expiresAt).toISOString()} or when folder consent ends.</p>
+              {local.phoneReview?.enabled ? (
+                <button className="secondary" disabled={busy} onClick={() => void run(async () => { await request("review/phone/disable"); await refresh(); })}>Stop phone review and revoke file access</button>
+              ) : (
+                <>
+                  <label className="approval-checkbox"><input type="checkbox" checked={phoneConsent} disabled={!permitted || busy || phoneLink.expiresAt <= now} onChange={e => setPhoneConsent(e.target.checked)} />I allow owner phone review for this exact gateway, device and session.</label>
+                  <button className="primary" disabled={!phoneConsent || !permitted || busy || phoneLink.expiresAt <= now} onClick={() => void run(async () => { await request("review/phone/enable", phoneLink); await refresh(); })}>Enable this phone review session</button>
+                </>
+              )}
+            </section>
+          )}
           {selected && permitted && (
             <>
               <section className="review-metric">
@@ -572,7 +594,7 @@ export function ReviewWorkspace({ request }: { request: Request }) {
                         target="_blank"
                         rel="noreferrer"
                       >
-                        Open verified local PDF
+                        {onPhone ? "Open verified PDF from the Mac" : "Open verified local PDF"}
                       </a>
                       {job.outputKind === "pptx" && <a href={`/api/review/jobs/${job.id}/artifacts/review.pptx`} download="review.pptx">Download verified editable PowerPoint deck</a>}
                       <div className="review-renderings">
@@ -612,10 +634,26 @@ export function ReviewWorkspace({ request }: { request: Request }) {
                               })
                             }
                           >
-                            Record local visual check
+                            {onPhone ? "Record phone visual check" : "Record local visual check"}
                           </button>
                         </div>
                       )}
+                      {(job.synthetic || job.verification?.visualApproved) && local.attachmentShares?.filter(share => share.id === job.id).map(share => (
+                        <div key={share.id}>
+                          <h3>Share exact generated attachments with Fo</h3>
+                          <p>Allow Fo to read only this job’s recorded PDF and editable PowerPoint bytes for five minutes or the remaining file/session lease. This does not authorize sending email or making a call.</p>
+                          {job.artifacts.filter(file => ["review.pdf", "review.pptx"].includes(file.name)).map(file => <p key={file.name}><b>{file.name}</b> · {file.bytes} bytes<br /><code>{file.sha256}</code></p>)}
+                          <p>Sharing digest <code>{share.digest}</code></p>
+                          {share.approved ? <p role="status">Fo may read these exact attachments until {share.expiresAt}.</p> : <>
+                            <label className="approval-checkbox"><input type="checkbox" checked={!!shareConsent[job.id]} disabled={busy} onChange={event => setShareConsent({ ...shareConsent, [job.id]: event.target.checked })} />I allow Fo to read these exact generated attachment hashes.</label>
+                            <button className="secondary" disabled={busy || !shareConsent[job.id]} onClick={() => void run(async () => {
+                              await request(`review/jobs/${job.id}/attachment-approval`, { digest: share.digest });
+                              setShareConsent(current => ({ ...current, [job.id]: false }));
+                              await refresh();
+                            })}>Allow Fo to read generated attachments</button>
+                          </>}
+                        </div>
+                      ))}
                     </>
                   )}
                 </article>

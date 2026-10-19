@@ -27,6 +27,7 @@ import {
   reviewSnapshotSchema,
   reviewPlanSchema,
   reviewJobSchema,
+  reviewAttachment, attachmentChunk, attachmentShare,
 } from "../review/contracts.ts";
 import {
   appInspection,
@@ -34,6 +35,7 @@ import {
   appAction,
   type AppAgent,
 } from "../apps/contracts.ts";
+import { phoneRequest, phoneStatus, phoneBytes, type PhoneRequest } from "../review/phone.ts";
 
 type Job = RelayJob & {
   state: "queued" | "delivered" | "completed";
@@ -55,6 +57,37 @@ export class SessionBroker implements OwnerService {
   private waiter?: { finish: (job?: RelayJob) => void };
   private statusFlight?: Promise<AppStatus>;
   private stopping = false;
+  async phoneReview(request: PhoneRequest) {
+    invariant(this.review, "REVIEW_DISABLED", "Client review is not configured.", 404);
+    const value = await this.enqueue({ ownerRequest: phoneRequest.parse(request) }, request.op === "status" ? 3000 : this.requestTimeoutMs);
+    const schema = request.op === "status" || request.op === "revoke" ? phoneStatus :
+      request.op === "approve" || request.op === "deny" ? reviewPlanSchema : request.op === "visual" ? reviewJobSchema : request.op === "share" ? attachmentShare : phoneBytes;
+    const parsed = schema.safeParse(value);
+    invariant(parsed.success, "INVALID_DEVICE_RESULT", "The companion returned invalid phone review evidence.", 502);
+    if (request.op === "status" || request.op === "revoke") {
+      const state = (parsed.data as z.infer<typeof phoneStatus>).phoneReview;
+      invariant(state.link?.sessionId === this.session?.id && state.link?.deviceId === this.deviceId &&
+        state.link!.expiresAt <= this.session!.expiresAt && state.enabled === (request.op === "status"),
+        "INVALID_DEVICE_RESULT", "Phone review evidence belongs to another connection or authority state.", 502);
+    }
+    if (request.op === "approve" || request.op === "deny") {
+      const plan = parsed.data as z.infer<typeof reviewPlanSchema>;
+      invariant(plan.id === request.id && plan.state === (request.op === "approve" ? "approved" : "denied") &&
+        (request.op !== "approve" || plan.digest === request.digest),
+        "INVALID_DEVICE_RESULT", "Phone approval result does not match the requested plan.", 502);
+    }
+    if (request.op === "visual") invariant((parsed.data as z.infer<typeof reviewJobSchema>).id === request.id,
+      "INVALID_DEVICE_RESULT", "Visual review result belongs to another job.", 502);
+    if (request.op === "share") {
+      const share = parsed.data as z.infer<typeof attachmentShare>;
+      invariant(share.id === request.id && share.digest === request.digest && share.approved,
+        "INVALID_DEVICE_RESULT", "Attachment-sharing approval belongs to another job or digest.", 502);
+    }
+    return parsed.data;
+  }
+  private payload(job: Job): RelayJob {
+    return "request" in job ? { id: job.id, request: job.request } : { id: job.id, ownerRequest: job.ownerRequest };
+  }
   constructor(
     readonly deviceId: string,
     private clock: () => number = Date.now,
@@ -83,6 +116,14 @@ export class SessionBroker implements OwnerService {
       };
     if (reviewEnabled)
       this.review = {
+        readAttachment: async (id, name, offset) => {
+          const chunk = await this.reviewResult(attachmentChunk, { tool: "review.read_attachment", args: reviewAttachment.parse({ id, name, offset }) });
+          const bytes = Buffer.from(chunk.base64, "base64");
+          invariant(chunk.id === id && chunk.name === name && chunk.offset === offset && chunk.nextOffset === Math.min(offset + 65536, chunk.totalBytes) &&
+            chunk.nextOffset > offset && bytes.length === chunk.nextOffset - offset && bytes.toString("base64") === chunk.base64,
+            "INVALID_DEVICE_RESULT", "Attachment chunk does not match its requested file and byte range.", 502);
+          return chunk;
+        },
         snapshot: () =>
           this.reviewResult(reviewSnapshotSchema, {
             tool: "review.snapshot",
@@ -119,7 +160,7 @@ export class SessionBroker implements OwnerService {
     invariant(
       parsed.success,
       "INVALID_DEVICE_RESULT",
-      "The companion returned invalid or excessive operation metadata. No document bytes are accepted through the relay.",
+      "The companion returned invalid or excessive operation metadata. Only strict metadata or explicitly approved bounded attachment chunks are accepted.",
       502,
     );
     return parsed.data!;
@@ -185,7 +226,7 @@ export class SessionBroker implements OwnerService {
       const job = [...this.jobs.values()].find((j) => j.state === "queued");
       if (job) {
         job.state = "delivered";
-        return { id: job.id, request: job.request };
+        return this.payload(job);
       }
     };
     const ready = take();
@@ -211,46 +252,51 @@ export class SessionBroker implements OwnerService {
     request: AgentRequest,
     timeout = this.requestTimeoutMs,
   ): Promise<unknown> {
-    this.requireSession();
     agentRequest.parse(request);
+    return this.enqueue({ request }, timeout);
+  }
+  private async enqueue(
+    request: { request: AgentRequest } | { ownerRequest: PhoneRequest },
+    timeout: number,
+  ): Promise<unknown> {
+    this.requireSession();
     invariant(
-      this.jobs.size < 64,
+      [...this.jobs.values()].filter(job => job.state !== "completed").length < 64,
       "DEVICE_BUSY",
       "The bounded device queue is full. Wait for current work.",
       429,
     );
+    // Audio + owner-review polling must not fill the pending-work quota with
+    // completed reads. Keep a separate bounded cache for duplicate receipts.
+    if (this.jobs.size >= 128) {
+      const oldest = [...this.jobs.values()].find(job => job.state === "completed");
+      if (oldest) { clearTimeout(oldest.timer); this.jobs.delete(oldest.id); }
+    }
     return new Promise((resolve, reject) => {
       const id = randomUUID();
+      const mayChange = "request" in request
+        ? ["fo_fix_execute_approved", "review.commit", "apps.open_approved"].includes(request.request.tool)
+        : ["approve", "deny", "revoke", "visual", "share"].includes(request.ownerRequest.op);
       const timer = setTimeout(() => {
         const job = this.jobs.get(id);
         this.jobs.delete(id);
         reject(
           new FixError(
-            job?.state === "delivered" &&
-              [
-                "fo_fix_execute_approved",
-                "review.commit",
-                "apps.open_approved",
-              ].includes(request.tool)
+            job?.state === "delivered" && mayChange
               ? "EXECUTION_UNCERTAIN"
               : "DEVICE_TIMEOUT",
-            job?.state === "delivered" &&
-              [
-                "fo_fix_execute_approved",
-                "review.commit",
-                "apps.open_approved",
-              ].includes(request.tool)
+            job?.state === "delivered" && mayChange
               ? "The device did not return an execution result. Inspect its local journal; no automatic retry was made."
               : "The device did not respond. No request was redelivered.",
             504,
           ),
         );
       }, timeout);
-      const job: Job = { id, request, state: "queued", resolve, reject, timer };
+      const job: Job = { id, ...request, state: "queued", resolve, reject, timer };
       this.jobs.set(id, job);
       if (this.waiter) {
         job.state = "delivered";
-        this.waiter.finish({ id, request });
+        this.waiter.finish(this.payload(job));
       }
     });
   }
@@ -291,6 +337,7 @@ export class SessionBroker implements OwnerService {
     };
     if (data?.isError) {
       let code = "COMPANION_ERROR",
+        status = 409,
         message =
           "The companion rejected this operation. Check its local interface.";
       try {
@@ -304,11 +351,12 @@ export class SessionBroker implements OwnerService {
         ) {
           code = error.code;
           message = error.message;
+          if ("ownerRequest" in job && [400, 403, 404, 409, 413, 429, 502, 503, 504].includes(error.status)) status = error.status;
         }
       } catch {
         /* No unvalidated remote error object is logged. */
       }
-      job.reject(new FixError(code, message));
+      job.reject(new FixError(code, message, status));
     } else if (
       data?.structuredContent &&
       typeof data.structuredContent === "object" &&

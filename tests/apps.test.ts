@@ -429,6 +429,7 @@ test("session relay carries strict app metadata and keeps owner approval local",
       new AbortController().signal,
     );
     assert(job);
+    assert("request" in job);
     const args = job.request.args as { appId?: "spotify"; id?: string };
     let result;
     if (job.request.tool === "apps.inspect") result = await c.engine.inspect();

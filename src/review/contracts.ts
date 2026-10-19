@@ -9,6 +9,19 @@ export const reviewApproval = z
   .object({ digest: z.string().regex(/^[a-f0-9]{64}$/) })
   .strict();
 export const reviewEmpty = z.object({}).strict();
+export const reviewAttachment = z.object({
+  id: z.uuid(), name: z.enum(["review.pdf", "review.pptx"]),
+  offset: z.number().int().min(0).max(3 * 1024 * 1024).multipleOf(65536),
+}).strict();
+export const attachmentShare = z.object({
+  id: z.uuid(), digest: reviewApproval.shape.digest, approved: z.boolean(), expiresAt: z.iso.datetime().optional(),
+}).strict();
+export const attachmentChunk = z.object({
+  id: z.uuid(), name: z.enum(["review.pdf", "review.pptx"]), sha256: reviewApproval.shape.digest,
+  totalBytes: z.number().int().positive().max(3 * 1024 * 1024),
+  offset: z.number().int().min(0).multipleOf(65536), nextOffset: z.number().int().positive(),
+  base64: z.string().min(1).max(87384).regex(/^[A-Za-z0-9+/]+={0,2}$/),
+}).strict();
 export type ReviewMetric = {
   visitors: number;
   paid: number;
@@ -87,7 +100,9 @@ export type ReviewJob = {
 };
 export type ReviewStatus = {
   enabled: true;
-  authority: "here" | "companion";
+  authority: "here" | "companion" | "phone";
+  phoneReview?: import("./phone.ts").PhoneReviewState;
+  attachmentShares?: z.infer<typeof attachmentShare>[];
   synthetic: boolean;
   outputKind?: ReviewOutputKind;
   folders: string[];
@@ -98,6 +113,7 @@ export type ReviewStatus = {
   blockers: string[];
 };
 export interface ReviewAgent {
+  readAttachment(id: string, name: "review.pdf" | "review.pptx", offset: number): Promise<z.infer<typeof attachmentChunk>>;
   snapshot(): Promise<ReviewSnapshot>;
   prepare(snapshotId: string): Promise<ReviewPlan>;
   commit(id: string): Promise<ReviewJob>;

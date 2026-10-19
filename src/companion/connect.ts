@@ -9,9 +9,10 @@ try {
     deviceId: process.env.FO_FIX_DEVICE_ID ?? "",
     localPort: Number(process.env.FO_FIX_PORT ?? "4310"),
     signal: controller.signal,
+    requestPhoneReview: process.argv.includes("--phone-review"),
     onConnected: (source, expiresAt) =>
       console.error(
-        `Device session connected: ${source === "fixture" ? "SYNTHETIC FIXTURE" : "local macOS companion"}; expires ${new Date(expiresAt).toISOString()}. Allow inspection and approve individual changes in the local interface.`,
+        `Device session connected: ${source === "fixture" ? "SYNTHETIC FIXTURE" : "local macOS companion"}; expires ${new Date(expiresAt).toISOString()}. ${process.argv.includes("--phone-review") ? "On the Mac, allow review folders and explicitly enable this exact phone session. Phone review cannot grant or renew file access." : "Allow inspection and approve individual changes in the local interface."}`,
       ),
   });
 } catch {

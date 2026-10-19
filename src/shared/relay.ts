@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { repairRequest } from "./requests.ts";
-import { reviewId, reviewPrepare } from "../review/contracts.ts";
+import { reviewId, reviewPrepare, reviewAttachment } from "../review/contracts.ts";
 import { appOpenRequest, appPlanId } from "../apps/contracts.ts";
+import { phoneRequest } from "../review/phone.ts";
 
 const empty = z.object({}).strict();
 export const agentRequest = z.discriminatedUnion("tool", [
@@ -31,12 +32,15 @@ export const agentRequest = z.discriminatedUnion("tool", [
   z.object({ tool: z.literal("review.prepare"), args: reviewPrepare }).strict(),
   z.object({ tool: z.literal("review.commit"), args: reviewId }).strict(),
   z.object({ tool: z.literal("review.verify"), args: reviewId }).strict(),
+  z.object({ tool: z.literal("review.read_attachment"), args: reviewAttachment }).strict(),
   z.object({ tool: z.literal("review.undo"), args: reviewId }).strict(),
 ]);
 export type AgentRequest = z.infer<typeof agentRequest>;
-export const relayJob = z
-  .object({ id: z.uuid(), request: agentRequest })
-  .strict();
+// The owner queue is never exposed through an MCP tool or machine credential.
+export const relayJob = z.union([
+  z.object({ id: z.uuid(), request: agentRequest }).strict(),
+  z.object({ id: z.uuid(), ownerRequest: phoneRequest }).strict(),
+]);
 export type RelayJob = z.infer<typeof relayJob>;
 export const relayConnection = z
   .object({ sessionId: z.uuid(), expiresAt: z.number().int().positive() })
