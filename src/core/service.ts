@@ -7,9 +7,11 @@ import type {
 } from "../shared/types.ts";
 import type { ReviewAgent } from "../review/contracts.ts";
 import type { AppAgent } from "../apps/contracts.ts";
+import type { FilesAgent } from "../files/contracts.ts";
 export interface AgentService {
   apps?: AppAgent;
   review?: ReviewAgent;
+  files?: FilesAgent;
   status(audience?: "local" | "agent"): AppStatus | Promise<AppStatus>;
   inspect(): Promise<Snapshot>;
   propose(recipe: Recipe, deviceId?: string): Promise<Plan>;

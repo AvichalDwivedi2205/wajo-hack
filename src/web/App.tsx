@@ -9,6 +9,7 @@ import {
   CircleHelp,
   Clock3,
   ExternalLink,
+  FolderOpen,
   Headphones,
   History,
   Info,
@@ -30,8 +31,9 @@ import {
 import type { Action, AppStatus, Plan, Snapshot } from "../shared/types.ts";
 import { ReviewWorkspace } from "./ReviewWorkspace.tsx";
 import { AppsWorkspace } from "./AppsWorkspace.tsx";
+import { FoldersWorkspace } from "./FoldersWorkspace.tsx";
 
-type View = "workspace" | "history" | "permissions" | "connection" | "review" | "apps";
+type View = "workspace" | "history" | "permissions" | "connection" | "review" | "apps" | "folders";
 type BrowserAuth = {
   csrfToken?: string;
   expiresAt?: number;
@@ -367,6 +369,7 @@ export function App() {
   const nav = [
     { key: "apps" as const, text: "Open apps", icon: ExternalLink },
     { key: "review" as const, text: "Client review", icon: Activity },
+    { key: "folders" as const, text: "Folders for Fo", icon: FolderOpen },
     {
       key: "workspace" as const,
       text: "Fix workspace",
@@ -638,7 +641,7 @@ export function App() {
               </div>
             </div>
           )}
-          {view !== "review" && view !== "apps" && <div className="environment-banner">
+          {view !== "review" && view !== "apps" && view !== "folders" && <div className="environment-banner">
             <span>
               <Info size={15} />
               <strong>
@@ -692,6 +695,7 @@ export function App() {
           )}
           {view === "review" && <ReviewWorkspace request={api} />}
           {view === "apps" && <AppsWorkspace request={api} />}
+          {view === "folders" && <FoldersWorkspace request={api} />}
           {view === "workspace" && (
             <>
               <div className="page-heading">

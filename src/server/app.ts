@@ -17,6 +17,8 @@ import { trustedProxyCheck } from "./proxy.ts";
 import { mountReview } from "../review/routes.ts";
 import { mountApps } from "../apps/routes.ts";
 import { AttachmentDownloads } from "./attachment-download.ts";
+import { MAX_MCP_REQUEST_BYTES } from "../shared/limits.ts";
+import { mountFolders } from "../files/routes.ts";
 
 export function createApp(
   engine: OwnerService,
@@ -84,13 +86,13 @@ export function createApp(
     }
     next();
   });
-  const downloads = config.mode === "remote" && engine instanceof SessionBroker && engine.review
+  const downloads = config.mode === "remote" && engine instanceof SessionBroker && (engine.review || engine.files)
     ? new AttachmentDownloads(engine, config.origin, options.auth?.clock) : undefined;
   if (downloads) app.head("/attachments/:token", (_req, res) => { res.sendStatus(405); });
   if (downloads) app.get("/attachments/:token", async (req, res) => {
     const file = await downloads.consume(req.params.token);
-    res.setHeader("Content-Disposition", `attachment; filename="${file.name}"`);
-    res.type(file.name === "review.pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.presentationml.presentation").send(file.bytes);
+    res.attachment(file.name);
+    res.type(file.contentType).send(file.bytes);
   });
   // Authenticate machine and owner APIs before parsing their request bodies.
   if (auth) {
@@ -99,6 +101,8 @@ export function createApp(
     app.use("/api", auth.owner);
     app.use("/session/result", express.json({ limit: "512kb" }));
   }
+  // Only authenticated (remote) or loopback MCP may carry one bounded folder write.
+  app.use("/mcp", express.json({ limit: MAX_MCP_REQUEST_BYTES }));
   app.use(express.json({ limit: "16kb" }));
   if (auth) {
     auth.mount(app, async () => {
@@ -132,6 +136,7 @@ export function createApp(
   const id = z.object({ id: z.uuid() }).strict();
   mountReview(app, engine, config, human);
   mountApps(app, engine, config.mode === "local", human);
+  mountFolders(app, engine, config.mode === "local", human);
   const empty = z.object({}).strict();
   app.get("/api/status", async (_req, res) =>
     res.json({
@@ -214,7 +219,9 @@ export function createApp(
         message:
           e.limit === 512 * 1024
             ? "Session results are limited to 512 KiB."
-            : "Requests are limited to 16 KiB.",
+            : e.limit === MAX_MCP_REQUEST_BYTES
+              ? "MCP requests are limited to 1 MiB."
+              : "Requests are limited to 16 KiB.",
       });
     else if (e instanceof FixError)
       res.status(e.status).json({ code: e.code, message: e.message });

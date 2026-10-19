@@ -6,6 +6,8 @@ This bounded MVP supports **sound-output selection and unmuting**. It does not i
 
 The optional **client-review workflow** reconciles ten synthetic files and previews a branded three-slide decision. The explicit Mac PPTX route creates a real editable deck and PDF; the Linux HTML/PDF route is a labelled simulation. Keynote native save/export acceptance failed. [Bounded owner phone review](docs/PHONE-REVIEW.md) is prepared with explicit Mac opt-in; live activation, physical-phone acceptance and complete Fo runs remain unpassed. See [the demo and native handoff](docs/CLIENT-REVIEW.md) and [implementation/test evidence](docs/CLIENT-REVIEW-VERIFICATION.md). Run the synthetic route with `npm run build` followed by `npm run review:demo` after installing its documented prerequisites.
 
+**Folder tools** let Fo list, read, search and write text files inside folders you choose on the Mac (for example an Obsidian vault), and create an editable PowerPoint deck with a matching PDF, all without shell access. Folders are named only on the companion command line, and Fo can use them only during a three-hour lease granted in the Mac interface. See [folder tools](docs/FOLDER-TOOLS.md) for what Fo can and cannot do, how to start the companion with a vault, and the risks, including prompt injection from note contents.
+
 **The cloud fixture is synthetic. No real device has been repaired.** Authenticated remote fixture/session profiles are implemented and tested with synthetic identities and devices; actual hosting, Fo registration and macOS hardware validation remain incomplete. The existing Fo account connector is a separate integration, not a connection to this companion.
 
 The selected hostname is `fo-reach.latchgrid.in`. The parent reports server and DNS infrastructure prepared separately; app activation remains pending approved credential configuration and reviewed source deployment. This source task changes neither GCP nor DNS. See [current client-review evidence](docs/CLIENT-REVIEW-VERIFICATION.md); the [version 4 review](docs/REVIEW-2026-10-18.md) records the earlier audio baseline.
@@ -94,6 +96,8 @@ For a generic local MCP client, use the direct command `node --import tsx /absol
 | `fo_fix_propose_repair`   | Create one `switch-output` or `unmute-output` proposal                                   |
 | `fo_fix_execute_approved` | Consume and execute an exact, unexpired, human-approved plan                             |
 | `fo_fix_propose_undo`     | Create a new inverse proposal for a verified repair                                      |
+
+When folders are allowed, the folder tools (`files.list`, `files.read`, `files.search`, `files.write`, `files.undo_write`, `slides.create`, plus `files.share_download` on the gateway) are added. See [folder tools](docs/FOLDER-TOOLS.md).
 
 There is **no MCP tool to grant permission or approve a plan**. Those actions require the human-review interface; device sessions accept them only in the local companion interface. Calling execute with an unapproved, denied, expired, stale, or consumed plan fails closed. All tool schemas reject extra arguments.
 

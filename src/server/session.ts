@@ -37,6 +37,17 @@ import {
   type AppAgent,
 } from "../apps/contracts.ts";
 import { phoneRequest, phoneStatus, phoneBytes, type PhoneRequest } from "../review/phone.ts";
+import {
+  artifactChunk as fileChunk,
+  filesListResult,
+  filesReadResult,
+  filesSearchResult,
+  filesUndoResult,
+  filesWriteResult,
+  slidesResult,
+  FILES_LIMITS,
+  type FilesAgent,
+} from "../files/contracts.ts";
 
 type Job = RelayJob & {
   state: "queued" | "delivered" | "completed";
@@ -48,6 +59,7 @@ type Job = RelayJob & {
 export class SessionBroker implements OwnerService {
   review?: ReviewAgent;
   apps?: AppAgent;
+  files?: FilesAgent;
   private session?: {
     id: string;
     source: Mode;
@@ -95,7 +107,57 @@ export class SessionBroker implements OwnerService {
     private requestTimeoutMs = 25_000,
     reviewEnabled = false,
     appsEnabled = false,
+    filesEnabled = false,
   ) {
+    // Folder tools relay strict, bounded metadata/text. Folder access itself is
+    // granted only in the Mac interface; the gateway has no grant operation.
+    if (filesEnabled) {
+      const sha = (text: string) => createHash("sha256").update(text).digest("hex");
+      const reject = "INVALID_DEVICE_RESULT", detail = "The companion returned folder evidence that does not match the request.";
+      this.files = {
+        list: async (args) => {
+          const result = await this.reviewResult(filesListResult, { tool: "files.list", args });
+          invariant(result.depth === (args.depth ?? 1), reject, detail, 502);
+          return result;
+        },
+        read: async (args) => {
+          const result = await this.reviewResult(filesReadResult, { tool: "files.read", args });
+          const offset = args.offset ?? 0;
+          invariant(result.offset >= offset && result.offset - offset <= 3 && result.bytes <= (args.maxBytes ?? 128 * 1024), reject, detail, 502);
+          return result;
+        },
+        search: async (args) => {
+          const result = await this.reviewResult(filesSearchResult, { tool: "files.search", args }, 30_000);
+          invariant(result.matches.length <= (args.maxResults ?? 50), reject, detail, 502);
+          return result;
+        },
+        write: async (args) => {
+          const result = await this.reviewResult(filesWriteResult, { tool: "files.write", args });
+          const bytes = Buffer.byteLength(args.content);
+          invariant(result.mode === args.mode && result.contentBytes === bytes &&
+            (args.mode === "append" ? result.bytes >= bytes : result.bytes === bytes && result.sha256 === sha(args.content)), reject, detail, 502);
+          return result;
+        },
+        undoWrite: async (args) => {
+          const result = await this.reviewResult(filesUndoResult, { tool: "files.undo_write", args });
+          invariant(result.writeId === args.writeId, reject, detail, 502);
+          return result;
+        },
+        createSlides: async (args) => {
+          // Above the Mac's 30 s render bound, below the 40 s TLS proxy timeout.
+          const result = await this.reviewResult(slidesResult, { tool: "slides.create", args }, 38_000);
+          invariant(result.title === args.title && result.slideCount === args.slides.length, reject, detail, 502);
+          return result;
+        },
+        readArtifact: async (args) => {
+          const chunk = await this.reviewResult(fileChunk, { tool: "files.read_artifact", args });
+          const bytes = Buffer.from(chunk.base64, "base64");
+          invariant(chunk.offset === args.offset && chunk.nextOffset === Math.min(args.offset + FILES_LIMITS.artifactChunk, chunk.totalBytes) &&
+            chunk.nextOffset > args.offset && bytes.length === chunk.nextOffset - args.offset, reject, detail, 502);
+          return chunk;
+        },
+      };
+    }
     if (appsEnabled)
       this.apps = {
         inspect: () =>
@@ -155,8 +217,9 @@ export class SessionBroker implements OwnerService {
   private async reviewResult<T>(
     schema: z.ZodType<T>,
     request: AgentRequest,
+    timeout = this.requestTimeoutMs,
   ): Promise<T> {
-    const value = await this.dispatch(request),
+    const value = await this.dispatch(request, Math.max(timeout, this.requestTimeoutMs)),
       parsed = schema.safeParse(value);
     invariant(
       parsed.success,
@@ -280,7 +343,7 @@ export class SessionBroker implements OwnerService {
     return new Promise((resolve, reject) => {
       const id = randomUUID();
       const mayChange = "request" in request
-        ? ["fo_fix_execute_approved", "review.commit", "apps.open_approved"].includes(request.request.tool)
+        ? ["fo_fix_execute_approved", "review.commit", "apps.open_approved", "files.write", "files.undo_write", "slides.create"].includes(request.request.tool)
         : ["approve", "deny", "revoke", "visual", "share"].includes(request.ownerRequest.op);
       const timer = setTimeout(() => {
         const job = this.jobs.get(id);

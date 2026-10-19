@@ -4,7 +4,7 @@ import { relayConnection, relayPoll } from "../shared/relay.ts";
 import { FixError, invariant } from "../core/errors.ts";
 import type { Mode } from "../shared/types.ts";
 import { boundedJson } from "../shared/bounded-json.ts";
-import { DEVICE_SESSION_MS } from "../shared/limits.ts";
+import { DEVICE_SESSION_MS, MAX_RELAY_JOB_BYTES } from "../shared/limits.ts";
 import { setTimeout as delay } from "node:timers/promises";
 
 export async function runDeviceSession(options: {
@@ -73,7 +73,7 @@ export async function runDeviceSession(options: {
       "The gateway rejected the device session. No automatic reconnection was attempted.",
       response.status,
     );
-    return boundedJson(response, 512 * 1024);
+    return boundedJson(response, path === "/session/poll" ? MAX_RELAY_JOB_BYTES : 512 * 1024);
   };
   const client = new Client({
     name: "fo-fix-device-session",

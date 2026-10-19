@@ -1,4 +1,5 @@
 import { resolve, join } from "node:path";
+import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import { Store } from "../core/store.ts";
@@ -18,6 +19,8 @@ import {
   KeynoteReviewAdapter,
   PptxReviewAdapter,
 } from "../review/adapter.ts";
+import { FolderEngine } from "../files/engine.ts";
+import { configureRoots, folderArguments, type Root } from "../files/paths.ts";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 let config;
@@ -85,6 +88,26 @@ if (real && config.mode === "remote") {
   );
   process.exit(2);
 }
+// Folder roots come only from this local command line or environment. The
+// gateway merely relays folder tools (FO_FIX_FILES_ENABLED=1); it holds none.
+const filesGateway = process.env.FO_FIX_FILES_ENABLED === "1";
+const stateDirectory = resolve(process.env.FO_REACH_HOME || join(homedir(), ".fo-reach"));
+let roots: Root[] = [];
+try {
+  const requested = folderArguments(process.argv.slice(2), process.env);
+  if (requested.length && config.mode !== "local") {
+    console.error("Allowed folders are configured only on the local Mac companion. The session gateway relays folder tools with FO_FIX_FILES_ENABLED=1 and holds no folder access.");
+    process.exit(2);
+  }
+  if (filesGateway && (config.mode !== "remote" || config.backend !== "session")) {
+    console.error("FO_FIX_FILES_ENABLED=1 is for the remote session gateway. On the Mac, allow folders with --allow-folder instead.");
+    process.exit(2);
+  }
+  roots = configureRoots(requested, { home: homedir(), stateDirectory });
+} catch (error) {
+  console.error(error instanceof FixError ? error.message : "Allowed folders could not be configured.");
+  process.exit(2);
+}
 const dataPath =
   process.env.FO_FIX_DATA ||
   join(root, ".fo-fix", real ? "macos.sqlite" : "fixture.sqlite");
@@ -105,6 +128,7 @@ const engine = store
       25_000,
       reviewEnabled,
       appsEnabled,
+      filesGateway,
     );
 const owner: OwnerService = engine;
 const apps =
@@ -140,6 +164,17 @@ const review =
       )
     : undefined;
 if (review) owner.review = review;
+let files: FolderEngine | undefined;
+try {
+  files = store && roots.length ? new FolderEngine(store, roots, { stateDirectory }) : undefined;
+} catch {
+  console.error(`The private Fo Reach state folder ${JSON.stringify(stateDirectory)} could not hold the audit log. Folder tools were not started.`);
+  process.exit(2);
+}
+if (files) {
+  owner.files = files;
+  console.error(`Folder tools: ${roots.length} allowed folder(s): ${roots.map((r) => JSON.stringify(r.path)).join(", ")}. Fo has no access until you choose "Allow Fo for 3 hours" in this Mac's Fo Reach interface. Audit: ${files.audit.path}`);
+}
 const { app, errors } = createApp(owner, port, { config });
 let vite: Awaited<ReturnType<typeof import("vite").createServer>> | undefined;
 if (process.argv.includes("--production") || real || config.mode === "remote") {
@@ -187,6 +222,7 @@ function stop() {
       engine.shutdown(),
       review?.shutdown(),
       apps?.shutdown(),
+      files?.shutdown(),
     ]);
     await vite?.close();
     store?.close();

@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import type { Action, AuditEvent, DeviceState, Plan } from "../shared/types.ts";
 import type { ReviewPlan, ReviewJob } from "../review/contracts.ts";
 import type { AppPlan, AppAction } from "../apps/contracts.ts";
+import type { WriteRecord } from "../files/contracts.ts";
 
 export const initialFixture: DeviceState = {
   outputId: "fixture-hdmi",
@@ -39,6 +40,7 @@ export type StoredData = {
   fixture: DeviceState;
   review?: { plans: ReviewPlan[]; jobs: ReviewJob[] };
   apps?: { plans: AppPlan[]; actions: AppAction[] };
+  files?: { writes: WriteRecord[] };
 };
 export class Store {
   private db: DatabaseSync;

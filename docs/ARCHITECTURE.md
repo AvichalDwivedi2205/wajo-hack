@@ -26,6 +26,8 @@ The review extension has six strict Mac MCP tools: `review.snapshot`, `review.pr
 
 The session gateway also offers `review.attachment_download`: a random, single-use HTTPS capability for one already approved generated file, valid for at most two minutes and the same live Mac session. The download re-reads every chunk through the existing Mac sharing gate, checks the complete file hash and checks access again before sending bytes. It buffers at most two 3 MiB downloads concurrently, stores at most 32 capability hashes in memory, caches no attachment bytes, and logs no capability URLs. Expiry, revocation, session replacement and byte changes cause refusal. A URL does not approve a file, renew access, authorize email/calls or permit arbitrary paths. Deployment access logs must omit these URLs. Fo downloads directly in its own workspace, checks SHA-256 and obtains actual artifact references for its native email tool. Actual delivery and call acceptance remain outstanding. This is not an unattended all-day workflow.
 
+Folder tools (`files.*`, `slides.create`, `files.share_download`) work only in folders named on the Mac companion's command line, during a three-hour lease granted in the loopback interface. They use the same relay, strict schemas and result cap, with no shell, no symlink following and backups before every overwrite. The gateway only relays them (`FO_FIX_FILES_ENABLED=1`) and has no grant route. See [FOLDER-TOOLS.md](FOLDER-TOOLS.md).
+
 See [DEPLOYMENT.md](DEPLOYMENT.md) for bearer handoff, optional OAuth, explicit TLS proxy boundaries, session lifetime and operational limits. These paths are exercised with synthetic identities/devices and an SDK client; real hosting, identity-provider and Fo acceptance are separate checks.
 
 ```mermaid

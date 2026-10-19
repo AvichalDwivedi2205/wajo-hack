@@ -3,6 +3,7 @@ import { repairRequest } from "./requests.ts";
 import { reviewId, reviewPrepare, reviewAttachment } from "../review/contracts.ts";
 import { appOpenRequest, appPlanId } from "../apps/contracts.ts";
 import { phoneRequest } from "../review/phone.ts";
+import { filesList, filesRead, filesSearch, filesWrite, filesUndo, artifactRead, slidesCreate } from "../files/contracts.ts";
 
 const empty = z.object({}).strict();
 export const agentRequest = z.discriminatedUnion("tool", [
@@ -34,6 +35,14 @@ export const agentRequest = z.discriminatedUnion("tool", [
   z.object({ tool: z.literal("review.verify"), args: reviewId }).strict(),
   z.object({ tool: z.literal("review.read_attachment"), args: reviewAttachment }).strict(),
   z.object({ tool: z.literal("review.undo"), args: reviewId }).strict(),
+  // Folder tools: owner-chosen roots and a local lease on the Mac. No grant.
+  z.object({ tool: z.literal("files.list"), args: filesList }).strict(),
+  z.object({ tool: z.literal("files.read"), args: filesRead }).strict(),
+  z.object({ tool: z.literal("files.search"), args: filesSearch }).strict(),
+  z.object({ tool: z.literal("files.write"), args: filesWrite }).strict(),
+  z.object({ tool: z.literal("files.undo_write"), args: filesUndo }).strict(),
+  z.object({ tool: z.literal("files.read_artifact"), args: artifactRead }).strict(),
+  z.object({ tool: z.literal("slides.create"), args: slidesCreate }).strict(),
 ]);
 export type AgentRequest = z.infer<typeof agentRequest>;
 // The owner queue is never exposed through an MCP tool or machine credential.
